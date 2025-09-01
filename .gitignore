@@ -1,5 +1,6 @@
 .DS_Store
-xbaselines/.DS_Store
+baselines/.DS_Store
+/runs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
