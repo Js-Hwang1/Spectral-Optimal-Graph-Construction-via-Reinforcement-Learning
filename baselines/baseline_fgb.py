@@ -96,6 +96,16 @@ def main():
         adj = generate_graph_fgb(args.n, args.m)
         lam2 = laplacian_second_eigenvalue(adj)
         print(f"n={args.n} m={args.m} lambda2={lam2:.6f}")
+        deg = np.sum(adj, axis=1)
+        deg_prev = deg[0]
+        for i in deg:
+            deg_curr = i
+            if (deg_curr != deg_prev):
+                print("Not regular")
+                print(deg)
+                exit()
+            deg_prev = deg_curr
+        print("Regular")
 
 
 if __name__ == "__main__":
