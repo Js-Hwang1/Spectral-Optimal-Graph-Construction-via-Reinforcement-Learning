@@ -11,9 +11,10 @@ This repository studies the following combinatorial design problem: among all si
 ## Formal Optimization Statement
 
 Let $\mathcal{G}_{n,m}$ be the set of all simple, undirected graphs with $n$ vertices and $m$ edges. The design problem is
-\[
+
+$$
 \max_{G\in\mathcal{G}_{n,m}}\; \lambda_2\big(L(G)\big).
-\]
+$$
 
 - When $m < n-1$, every feasible $G$ is disconnected, so the maximum is $0$. For meaningful connectivity design we typically assume $n-1 \leq m \leq \binom{n}{2}$.
 - This problem is combinatorial and non-convex: the search space size is $\binom{\binom{n}{2}}{m}$.
