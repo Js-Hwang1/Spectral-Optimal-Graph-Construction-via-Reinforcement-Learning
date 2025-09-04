@@ -26,6 +26,7 @@ Let $X\in\{0,1\}^{n\times n}$ be a binary symmetric matrix with zero diagonal en
 $$
 \max_{X\in\{0,1\}^{n\times n}}\; \lambda_2\big(L(X)\big)
 $$
+
 subject to
 
 $$
