@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# v9.py — Hard-bucketed (density) ER-pruned PPO with fast spectral caching
-# Minimal, fast, single-file training/inference.
-# - Per-bucket heads (edge/value) with shared GAT encoder
-# - ER Top-K pruning
-# - Final-return reward (sparse) with ER baseline margin
-# - Fast spectral: skip per-step λ2; refresh every K steps; exact at episode end
-# - Small, dependency-light (numpy, scipy, torch)
-
 import os, sys, math, time, json, random, argparse
 import csv
 import copy
@@ -62,7 +53,6 @@ def log_row(csv_path: str, header: list, row: list):
             w.writerow(header)
         w.writerow(row)
 
-# JSONL logger for detailed per-step diagnostics
 def log_jsonl(path: str, record: dict):
     if not path:
         return
@@ -88,33 +78,18 @@ def laplacian_from_adj(adj: np.ndarray) -> np.ndarray:
 # Algebraic connectivity (λ2) + (optionally) Fiedler/next vectors via SciPy or torch
 
 def lam2_with_vectors(L: np.ndarray, backend: str = "scipy", device: str = "cpu"):
-    """
-    Return (λ2, φ2, φ3) of the Laplacian L.
-    SciPy path:
-      * For small graphs (n ≤ 256), use dense eigh (robust, fast enough).
-      * Otherwise, use eigsh with which='SM' (smallest magnitude) to avoid
-        shift-invert at sigma=0 on a singular Laplacian. Fall back to dense eigh
-        if ARPACK fails or returns NaNs/Infs.
-    Torch path:
-      * Use full eigh (CPU/GPU) for small graphs.
-    """
     n = L.shape[0]
     if backend == "scipy":
         if not _HAVE_SCIPY:
             raise RuntimeError("SciPy not available; use --spectral_backend torch")
         try:
             if n <= 256:
-                # Dense is very stable for small n and avoids shift-invert pitfalls.
                 w, v = np.linalg.eigh(L)
             else:
-                # Use 'SM' (smallest magnitude) to get [0, λ2, λ3, ...] without shift-invert.
-                # Work with a CSR to help ARPACK and set a mild tolerance.
                 w, v = eigsh(csr_matrix(L), k=min(3, n-1), which='SM', tol=1e-6, maxiter=max(1000, 10*n))
         except Exception:
-            # Robust fallback: dense eigh
             w, v = np.linalg.eigh(L)
 
-        # If anything went numerically wrong, fall back to dense.
         if not np.all(np.isfinite(w)) or not np.all(np.isfinite(v)):
             w, v = np.linalg.eigh(L)
 
@@ -125,7 +100,6 @@ def lam2_with_vectors(L: np.ndarray, backend: str = "scipy", device: str = "cpu"
         phi3 = v[:, 2] if v.shape[1] > 2 else np.zeros(n)
         return lam2, phi2, phi3
     else:
-        # torch backend (CPU/GPU)
         tL = torch.as_tensor(L, dtype=torch.float64, device=device)
         w, v = torch.linalg.eigh(tL)
         w = w.cpu().numpy(); v = v.cpu().numpy()
@@ -136,29 +110,21 @@ def lam2_with_vectors(L: np.ndarray, backend: str = "scipy", device: str = "cpu"
         phi3 = v[:, 2] if v.shape[1] > 2 else np.zeros(L.shape[0])
         return lam2, phi2, phi3
 
-# Effective resistance top-K via dense eig (n<=64 practical). For speed, we
-# compute full pseudoinverse once per step.
 
 def er_topk(n:int, adj: np.ndarray, k: int, frac_cap: float) -> Tuple[np.ndarray,np.ndarray,np.ndarray]:
-    # Build Laplacian and pseudoinverse L^+
     L = laplacian_from_adj(adj)
-    # Dense eig (tiny n) — robust and fast enough here
     w, V = np.linalg.eigh(L)
-    # Build L^+ via eigen decomposition (exclude zero eigen)
     tol = 1e-12
     invw = np.zeros_like(w)
     mask = w > tol
     invw[mask] = 1.0 / w[mask]
-    Lplus = (V * invw) @ V.T  # V diag(invw) V^T
+    Lplus = (V * invw) @ V.T  
 
-    # Candidate list: all non-edges u<v
     iu, iv = np.triu_indices(n, k=1)
     mask_non = (adj[iu, iv] == 0)
     iu, iv = iu[mask_non], iv[mask_non]
-    # ER(u,v) = L+_uu + L+_vv - 2L+_uv
     er = Lplus[iu, iu] + Lplus[iv, iv] - 2.0 * Lplus[iu, iv]
 
-    # Top-K (with fraction cap)
     total = len(er)
     if frac_cap > 0:
         cap = int(math.ceil(frac_cap * total))
@@ -178,14 +144,6 @@ def er_topk(n:int, adj: np.ndarray, k: int, frac_cap: float) -> Tuple[np.ndarray
 # Greedy ER baseline (λ2 after greedy ER completion)
 # -----------------------------
 def er_greedy_baseline_lambda2(n: int, adj: np.ndarray, m: int, backend: str = 'scipy', device: str = 'cpu') -> float:
-    """
-    Greedy ER completion baseline: starting from `adj`, repeatedly add the edge
-    with the largest effective resistance (Top-1) until the graph has `m` edges.
-    Finally compute and return λ2 of the completed graph.
-    Notes:
-      * We never compute λ2 during the rollout, only once at the end.
-      * Each ER step needs a pseudoinverse (eigendecomp) – OK for n<=~64.
-    """
     adj_b = adj.copy()
     base_edges = int(adj_b.sum() // 2)
     steps = max(0, m - base_edges)
@@ -201,12 +159,7 @@ def er_greedy_baseline_lambda2(n: int, adj: np.ndarray, m: int, backend: str = '
     lam2_b, _, _ = lam2_with_vectors(Lb, backend=backend, device=device)
     return lam2_b
 
-def lam2_after_add_and_fill(n: int, adj: np.ndarray, m: int, u: int, v: int,
-                            backend: str = 'scipy', device: str = 'cpu') -> float:
-    """
-    Add (u,v) to a copy of adj, then greedily complete with ER Top-1 until m edges.
-    Return final λ2. Used for rollout-shaped rewards.
-    """
+def lam2_after_add_and_fill(n: int, adj: np.ndarray, m: int, u: int, v: int, backend: str = 'scipy', device: str = 'cpu') -> float:
     adj2 = adj.copy()
     if u != v and adj2[u, v] == 0.0:
         adj2[u, v] = 1.0
@@ -383,111 +336,80 @@ class GATEncoder(nn.Module):
         return x  # (n, out_dim)
 
 # -----------------------------
-# Per-bucket isolated subnets (20 by default)
-# Each bucket has its own encoder + heads: no cross-density influence.
+# Unified policy/value net (single model, no buckets)
 # -----------------------------
 
-class BucketNet(nn.Module):
-    def __init__(self, node_in, hid, heads, layers, edge_hidden, value_hidden, bucket_emb_dim):
+class PolicyValueNet(nn.Module):
+
+    def __init__(self, node_in, hid, heads, layers, edge_hidden, value_hidden, device='cpu'):
         super().__init__()
-        # Private encoder for this bucket (cold wall preserved)
         self.encoder = GATEncoder(node_in, hid, heads, layers)
         self.node_emb_dim = self.encoder.out_dim
 
-        # Global graph-context attention pooling (learnable query)
         self.gc_query = nn.Parameter(torch.randn(self.node_emb_dim) * 0.01)
-
-        # Learnable bucket embedding (kept for parity with v8)
-        self.bucket_emb = nn.Parameter(torch.randn(bucket_emb_dim) * 0.01)
-        self.bucket_emb_dim = bucket_emb_dim
-
-        # Edge scorer now sees: [H_u || H_v || gc || edge_feat_dim edge feats || 4 global feats || bucket emb]
-        edge_in = self.node_emb_dim * 2 + self.node_emb_dim + 7 + 4 + bucket_emb_dim
+        
+        # CHANGED: global_feats is now 5-dimensional, so edge_in and value_in increase by 1
+        # UPDATED: edge_feats: 7 -> 11 (regularity augmentations)
+        edge_in = self.node_emb_dim * 2 + self.node_emb_dim + 11 + 5
         self.edge_mlp = nn.Sequential(
             nn.Linear(edge_in, edge_hidden),
             nn.ReLU(),
             nn.Linear(edge_hidden, 1),
         )
 
-        # Q-head predicts terminal λ2 after adding the candidate and greedy-completing (used as auxiliary loss)
         self.q_mlp = nn.Sequential(
             nn.Linear(edge_in, edge_hidden),
             nn.ReLU(),
             nn.Linear(edge_hidden, 1),
         )
 
-        # Value head: mean(H) + [log1p(n), dens_target, progress, λ2] + bucket emb
-        value_in = self.node_emb_dim + 4 + bucket_emb_dim
+        # CHANGED: value_in increases by 1 for the new global feature
+        value_in = self.node_emb_dim + 5
         self.value_mlp = nn.Sequential(
             nn.Linear(value_in, value_hidden),
             nn.ReLU(),
             nn.Linear(value_hidden, 1),
         )
 
-    def forward(self, node_feats, adj_dense, cand_edges, edge_feats_7, global_feats_4):
+    def forward(self, node_feats, adj_dense, cand_edges, edge_feats_7, global_feats_5): # CHANGED: Renamed for clarity
         """
-        node_feats:    (n, F)
-        adj_dense:     (n, n)
-        cand_edges:    (K, 2) long
-        edge_feats_7:    (K, 7)
-        global_feats_4:(4,)   -> [log1p(n), dens_target, progress, λ2]
+        node_feats:     (n, F)
+        adj_dense:      (n, n)
+        cand_edges:     (K, 2) long
+        edge_feats_7:   (K, 7)
+        global_feats_5: (5,)   -> [log1p(n), dens_target, progress, lam2, is_regular_possible]
         """
-        x = self.encoder(node_feats, adj_dense)  # (n, D)
+        x = self.encoder(node_feats, adj_dense)
 
-        # Value head uses pooled node embeddings + global features + bucket embedding
-        pool = x.mean(dim=0)  # (D,)
-        gfull = torch.cat([pool, global_feats_4, self.bucket_emb], dim=0)
+        pool = x.mean(dim=0)
+        gfull = torch.cat([pool, global_feats_5], dim=0)
         value = self.value_mlp(gfull).squeeze(-1)
 
-        # If no candidates, return empty logits/q and the value
         if cand_edges.numel() == 0:
             return torch.empty(0, device=x.device), value, torch.empty(0, device=x.device)
 
-        # -------- Global graph-context pooling (attention with learnable query) --------
-        # scores_i = H_i · q, softmax over nodes, context = Σ_i α_i H_i
-        scores = torch.matmul(x, self.gc_query)              # (n,)
-        alpha = torch.softmax(scores, dim=0).unsqueeze(1)    # (n,1)
-        gc = (alpha * x).sum(dim=0)                          # (D,)
+        scores = torch.matmul(x, self.gc_query)
+        alpha = torch.softmax(scores, dim=0).unsqueeze(1)
+        gc = (alpha * x).sum(dim=0)
+        
+        u, v = cand_edges[:, 0], cand_edges[:, 1]
+        xu, xv = x[u], x[v]
+        uv = torch.cat([xu, xv], dim=1)
 
-        # Candidate-specific tensors
-        u = cand_edges[:, 0]
-        v = cand_edges[:, 1]
-        xu = x[u]                               # (K, D)
-        xv = x[v]                               # (K, D)
-        uv = torch.cat([xu, xv], dim=1)         # (K, 2D)
-
-        # Replicate global context and features per-candidate
         K = cand_edges.size(0)
-        gc_rep = gc.unsqueeze(0).expand(K, -1)                  # (K, D)
-        gf_rep = global_feats_4.unsqueeze(0).expand(K, -1)      # (K, 4)
-        b = self.bucket_emb.view(1, -1).expand(K, -1)           # (K, emb)
+        gc_rep = gc.unsqueeze(0).expand(K, -1)
+        gf_rep = global_feats_5.unsqueeze(0).expand(K, -1) # CHANGED
 
-        edge_full = torch.cat([uv, gc_rep, edge_feats_7, gf_rep, b], dim=1)  # (K, 2D + D + edge_feat_dim + 4 + emb)
+        edge_full = torch.cat([uv, gc_rep, edge_feats_7, gf_rep], dim=1)
+        edge_full = torch.nan_to_num(edge_full, nan=0.0, posinf=0.0, neginf=0.0)
 
-        logits = self.edge_mlp(edge_full).squeeze(-1)   # (K,)
-        q_pred = self.q_mlp(edge_full).squeeze(-1)      # (K,)
+        logits = self.edge_mlp(edge_full).squeeze(-1)
+        q_pred = self.q_mlp(edge_full).squeeze(-1)
+        # Guard against any numerical issues
+        logits = torch.nan_to_num(logits, nan=0.0, posinf=1e6, neginf=-1e6)
+        q_pred = torch.nan_to_num(q_pred, nan=0.0, posinf=0.0, neginf=0.0)
         return logits, value, q_pred
-
-# -----------------------------
-# Policy/Value Net (hard isolation across buckets)
-# -----------------------------
-
-class PolicyValueNet(nn.Module):
-    def __init__(self, node_in, hid, heads, layers, edge_hidden, value_hidden, buckets, bucket_emb, device='cpu'):
-        super().__init__()
-        self.buckets = nn.ModuleList([
-            BucketNet(node_in, hid, heads, layers, edge_hidden, value_hidden, bucket_emb)
-            for _ in range(buckets)
-        ])
-
-    def forward(self, node_feats, adj_dense, cand_edges, edge_feats_7, bucket_id, global_feats_4):
-        # Clamp for safety if args/model mismatch slips through
-        if isinstance(bucket_id, torch.Tensor):
-            bid = int(bucket_id.item())
-        else:
-            bid = int(bucket_id)
-        bid = max(0, min(bid, len(self.buckets) - 1))
-        return self.buckets[bid](node_feats, adj_dense, cand_edges, edge_feats_7, global_feats_4)
+    
 
 # -----------------------------
 # PPO Agent (final-return reward)
@@ -559,7 +481,16 @@ class PPOAgent:
         dones = torch.tensor(self.dones, dtype=torch.float32, device=self.device)
         with torch.no_grad():
             adv, ret = self._compute_adv(rews, vals, dones, cfg.gamma, cfg.lam)
-            adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+            # Robust normalization: avoid NaNs when T<=1 or zero-variance
+            adv_mean = adv.mean()
+            adv_std = adv.std(unbiased=False)
+            if not torch.isfinite(adv_std) or adv_std.item() == 0.0:
+                adv = adv - adv_mean
+            else:
+                adv = (adv - adv_mean) / (adv_std + 1e-8)
+            # Final safety
+            adv = torch.nan_to_num(adv, nan=0.0, posinf=0.0, neginf=0.0)
+            ret = torch.nan_to_num(ret, nan=0.0, posinf=0.0, neginf=0.0)
 
         # Flatten obs into a list of lazy callables to re-forward per minibatch
         data = list(zip(self.obs, acts, old_logp, vals, adv, ret))
@@ -573,9 +504,16 @@ class PPOAgent:
                 new_logps=[]; entropies=[]; values=[]; oldlog=[]; actidx=[]; advantages=[]; returns=[]
                 old_values_list=[]; q_losses=[]
                 for (obs_t, a, olp, v, gae, R) in batch:
-                    (node_feats, adj_dense, cand_edges, edge_feats, b_id, global_feats, temp, *rest) = obs_t
+                    (node_feats, adj_dense, cand_edges, edge_feats, global_feats, temp, *rest) = obs_t
+                    # Sanitize inputs to be safe against any accidental NaNs/Infs
+                    node_feats = torch.nan_to_num(node_feats, nan=0.0, posinf=0.0, neginf=0.0)
+                    adj_dense  = torch.nan_to_num(adj_dense,  nan=0.0, posinf=0.0, neginf=0.0)
+                    edge_feats = torch.nan_to_num(edge_feats, nan=0.0, posinf=0.0, neginf=0.0)
+                    global_feats = torch.nan_to_num(global_feats, nan=0.0, posinf=0.0, neginf=0.0)
+
                     q_aux = rest[0] if len(rest) > 0 else None
-                    logits, value, q_pred = self.net(node_feats, adj_dense, cand_edges, edge_feats, b_id, global_feats)
+                    logits, value, q_pred = self.net(node_feats, adj_dense, cand_edges, edge_feats, global_feats)
+                    logits = torch.nan_to_num(logits, nan=0.0, posinf=1e6, neginf=-1e6)
                     dist = Categorical(logits=logits / temp)
                     new_logps.append(dist.log_prob(a))
                     entropies.append(dist.entropy())
@@ -606,6 +544,7 @@ class PPOAgent:
                 old_values = torch.stack(old_values_list)
 
                 ratio = torch.exp(new_logps - oldlog)
+                ratio = torch.nan_to_num(ratio, nan=1.0, posinf=10.0, neginf=0.0)
                 clip_adv = torch.clamp(ratio, 1.0-cfg.clip, 1.0+cfg.clip) * advantages
                 pol_loss = -torch.min(ratio*advantages, clip_adv).mean()
                 if self.cfg.clip_vf and self.cfg.clip_vf > 0.0:
@@ -694,14 +633,6 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
     adj0 = env.adj.copy()
     base_lam2 = er_greedy_baseline_lambda2(env.n, adj0, env.m, backend=env.backend, device=env.device)
 
-    # --- USE MODEL'S BUCKET COUNT, not CLI ---
-    try:
-        model_bucket_count = len(net.buckets)
-    except Exception:
-        model_bucket_count = int(getattr(args, 'dens_buckets', 1))
-    model_bucket_count = max(1, int(model_bucket_count))
-    b_id = bucket_id_from_density(env.n, env.m, model_bucket_count)
-
     temp = torch.tensor([args.train_temperature if train else 1.0], device=agent.device).squeeze(0)
 
     done = env.done
@@ -735,28 +666,72 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
         adj_dense = torch.tensor(env.adj, dtype=torch.float32, device=agent.device)
         cand_edges = torch.tensor(np.stack([iu,iv], axis=1), dtype=torch.long, device=agent.device)
 
-        # v8-style edge feats
+        # v8-style edge feats + regularity-aware augmentations
         z = st['z']                      # complex (n,)
-        degn = st['deg_norm']            # (n,)
+        degn = st['deg_norm']            # (n,) degree normalized to [0,1]
         progress = float(st['progress'])
         dens_target = float(st['dens_target'])
         lam2_now = float(st['lam2'])
+        is_regular_possible = 1.0 if (2 * env.m) % env.n == 0 else 0.0
 
+        # Candidate endpoints
         u = iu; v = iv
-        dz = np.abs(z[u] - z[v]).astype(np.float32)
-        du = degn[u].astype(np.float32)
-        dv = degn[v].astype(np.float32)
-        hs = ers.astype(np.float32)
         K = len(u)
-        edge_feats_np = np.stack([dz,du,dv,np.full(K, progress, dtype=np.float32),np.full(K, dens_target, dtype=np.float32),np.full(K, lam2_now, dtype=np.float32),hs], axis=1)
+
+        # Original cues
+        dz = np.abs(z[u] - z[v]).astype(np.float32)
+        du_norm = degn[u].astype(np.float32)
+        dv_norm = degn[v].astype(np.float32)
+        hs = ers.astype(np.float32)
+
+        # Absolute degrees (for regularity math)
+        deg_abs = env.cached['deg'].astype(np.float32)
+        du_abs = deg_abs[u]
+        dv_abs = deg_abs[v]
+
+        # Current edge count, mean degree, and variance
+        e_now = int(env.adj.sum() // 2)
+        mu = 2.0 * e_now / env.n
+        S2 = float((deg_abs**2).sum())
+        Var = S2 / env.n - mu * mu
+
+        # Target regular degree if realizable
+        k_tgt = math.ceil(2.0 * env.m / env.n)
+
+        # End-point degree deficits toward k_tgt (floor at 0)
+        def_u = np.maximum(0.0, k_tgt - du_abs).astype(np.float32)
+        def_v = np.maximum(0.0, k_tgt - dv_abs).astype(np.float32)
+
+        # Exact change in degree variance if we add (u,v)
+        # ΔVar = (2*(deg[u]+deg[v])+2)/n - (4*μ/n + 4/n^2)
+        dVar = (2.0 * (du_abs + dv_abs) + 2.0) / env.n - (4.0 * mu / env.n + 4.0 / (env.n * env.n))
+        dVar = dVar.astype(np.float32)
+
+        # Two-hop overlap |N(u) ∩ N(v)| normalized by (n-2)
+        A = env.adj  # (n,n) 0/1
+        Au = A[u]    # (K,n)
+        Av = A[v]    # (K,n)
+        overlap = (Au * Av).sum(axis=1).astype(np.float32)
+        den = max(1, env.n - 2)
+        overlap = overlap / den
+
+        # Stack original 7 + 4 new = 11 edge features
+        edge_feats_np = np.stack([
+            dz,
+            du_norm, dv_norm,
+            np.full(K, progress, dtype=np.float32),
+            np.full(K, dens_target, dtype=np.float32),
+            np.full(K, lam2_now, dtype=np.float32),
+            hs,
+            def_u, def_v,
+            dVar, overlap
+        ], axis=1).astype(np.float32)
 
         edge_feats = torch.tensor(edge_feats_np, dtype=torch.float32, device=agent.device)
 
-        # Global features for value head
-        global_feats = torch.tensor([math.log1p(env.n), dens_target, progress, lam2_now],
-                                    dtype=torch.float32, device=agent.device)
+        global_feats = torch.tensor([math.log1p(env.n), dens_target, progress, lam2_now, is_regular_possible], dtype=torch.float32, device=agent.device)
 
-        logits, value, q_pred = net(node_feats, adj_dense, cand_edges, edge_feats, b_id, global_feats)
+        logits, value, q_pred = net(node_feats, adj_dense, cand_edges, edge_feats, global_feats)
         dist = Categorical(logits=logits / (args.train_temperature if train else 1.0))
         a_idx = dist.sample() if train else torch.argmax(dist.logits)
 
@@ -808,6 +783,15 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
             r_step *= ro_scale
             if ro_clip and ro_clip > 0.0:
                 r_step = float(np.clip(r_step, -ro_clip, +ro_clip))
+
+            # Regularity shaping (very small, only when regular k is feasible)
+            if is_regular_possible >= 0.5 and Var > 1e-9:
+                # Use the dVar of the chosen action: reward reducing variance
+                dvar_chosen = float(dVar[int(a_idx.detach().cpu().item())])
+                r_reg = (-dvar_chosen) / Var
+                r_reg = float(np.clip(r_reg, -0.5, 0.5))  # guardrails
+                r_step += args.reg_shaping_coef * r_reg
+
             r_used = float(r_step)
 
             # Auxiliary Q targets: terminal λ2 after add+greedy-complete
@@ -829,8 +813,8 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
                 v_np = np.asarray(v, dtype=np.int64)
                 ers_np = np.asarray(ers, dtype=np.float32)
                 dz_np = np.asarray(dz, dtype=np.float32)
-                du_np = np.asarray(du, dtype=np.float32)
-                dv_np = np.asarray(dv, dtype=np.float32)
+                du_np = np.asarray(du_norm, dtype=np.float32)
+                dv_np = np.asarray(dv_norm, dtype=np.float32)
 
                 rec = {
                     'ep': int(ep),
@@ -838,7 +822,6 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
                     'n': int(env.n),
                     'm': int(env.m),
                     'dens': float(normalized_density(env.n, env.m)),
-                    'bucket_id': int(b_id),
                     'progress': float(progress),
                     'lambda2_now': float(lam2_now),
                     'K': int(len(u_np)),
@@ -903,8 +886,7 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
                     node_feats.detach(),
                     adj_dense.detach(),
                     cand_edges.detach(),
-                    edge_feats.detach(),          # store 7-dim edge feats
-                    b_id,
+                    edge_feats.detach(),          
                     global_feats.detach(),
                     torch.tensor(args.train_temperature, device=agent.device),
                     q_aux if getattr(args, 'rollout_reward', False) else None
@@ -984,8 +966,6 @@ def main():
     p.add_argument('--gat_layers', type=int, default=3)
     p.add_argument('--edge_mlp_hidden', type=int, default=256)
     p.add_argument('--value_mlp_hidden', type=int, default=128)
-    p.add_argument('--dens_buckets', type=int, default=20)
-    p.add_argument('--bucket_emb_dim', type=int, default=8)
 
     # PPO
     p.add_argument('--lr', type=float, default=3e-4)
@@ -1015,6 +995,8 @@ def main():
                help='Multiply each per-step shaped reward by this factor.')
     p.add_argument('--rollout_reward_clip', type=float, default=0.0,
                help='If >0, clip each per-step shaped reward to [-clip, +clip].')
+    p.add_argument('--reg_shaping_coef', type=float, default=1,
+                   help='Scale of per-step variance-reduction shaping when regularity is possible (set 0 to disable).')
 
     p.add_argument('--final_return_reward', action='store_true',
                help='Pure terminal reward: final λ2 minus ER-greedy baseline from the initial graph.')
@@ -1035,7 +1017,7 @@ def main():
     p.add_argument('--device', type=str, default='cpu')
 
     # IO
-    p.add_argument('--save_model', type=str, default='v9.pt')
+    p.add_argument('--save_model', type=str, default='v11.pt')
     p.add_argument('--load_model', type=str, default='')
     p.add_argument('--save_every', type=int, default=200)
     p.add_argument('--log_csv', type=str, default='', help='Optional CSV file to append per-episode metrics')
@@ -1057,15 +1039,10 @@ def main():
         'heads': args.gat_heads,
         'layers': args.gat_layers,
         'edge_mlp_hidden': args.edge_mlp_hidden,
-        'value_mlp_hidden': args.value_mlp_hidden,
-        'buckets': args.dens_buckets,
-        'bucket_emb': args.bucket_emb_dim
+        'value_mlp_hidden': args.value_mlp_hidden
     }
 
-    net = PolicyValueNet(arch['node_in'], arch['hid'], arch['heads'], arch['layers'],
-                         arch['edge_mlp_hidden'], arch['value_mlp_hidden'],
-                         arch['buckets'], arch['bucket_emb'],
-                         device=device.type).to(device)
+    net = PolicyValueNet(arch['node_in'], arch['hid'], arch['heads'], arch['layers'], arch['edge_mlp_hidden'], arch['value_mlp_hidden'],device=device.type).to(device) 
     ppo_cfg = PPOConfig(
         lr=args.lr, gamma=args.gamma, lam=args.lam, clip=args.clip, ent_coef=args.ent_coef, vf_coef=args.vf_coef,
         ppo_epochs=args.ppo_epochs, mb_size=args.mb_size, train_temperature=args.train_temperature,
@@ -1083,7 +1060,7 @@ def main():
             net = PolicyValueNet(
                 arch['node_in'], arch['hid'], arch['heads'], arch['layers'],
                 arch['edge_mlp_hidden'], arch['value_mlp_hidden'],
-                arch['buckets'], arch['bucket_emb'], device=device.type
+                device=device.type # CHANGED
             ).to(device)
             agent = PPOAgent(net, ppo_cfg, device=device)
 
@@ -1105,32 +1082,11 @@ def main():
         if not args.multi_task:
             return args.n, args.m
         n = random.randint(args.n_min, args.n_max)
-        Mmax = n*(n-1)//2
+        Mmax = n * (n - 1) // 2
         base = n - 1
-        span = max(1, Mmax - base)
-
-        # Map raw density bounds [0..1] to augmented density bounds (tree-normalized) in [0..1]
-        def raw_to_aug(d_raw: float) -> float:
-            m_raw = d_raw * Mmax
-            return float(np.clip((m_raw - base) / span, 0.0, 1.0))
-
-        aug_lo = raw_to_aug(args.dens_min)
-        aug_hi = raw_to_aug(args.dens_max)
-
-        # Choose a bucket uniformly within [aug_lo, aug_hi]
-        B = args.dens_buckets
-        epsfix = np.nextafter(0.0, -1.0)  # keep the upper edge exclusive
-        b_lo = max(0, min(B - 1, int(math.floor(aug_lo * B))))
-        b_hi = max(0, min(B - 1, int(math.floor((aug_hi * B) + epsfix))))
-        if b_hi < b_lo:
-            b_hi = b_lo
-
-        b = random.randint(b_lo, b_hi)
-        left = b / B
-        right = (b + 1) / B
-        dens_aug = left + (right - left) * random.random()
-
-        m = base + int(round(dens_aug * span))
+        # Sample normalized density t in [dens_min, dens_max]
+        t = random.uniform(args.dens_min, args.dens_max)
+        m = int(round(base + t * (Mmax - base)))
         m = max(base, min(Mmax, m))
         return n, m
 
@@ -1139,10 +1095,15 @@ def main():
         cfg = EnvConfig(n=n, m=m, init=args.init, spectral_backend=args.spectral_backend, device=device.type, fast_spectral=False, spectral_refresh_k=args.spectral_refresh_k)
         env = GraphBuildEnv(cfg)
         lam2, reward, steps, base_lam2, diag = run_episode(env, net, agent, args, train=False, ep=0)
+        # Determine if the final graph is regular (all degrees equal)
+        deg = np.rint(env.adj.sum(axis=1)).astype(int)
+        is_reg = (deg.min() == deg.max())
+        reg_k = int(deg[0]) if (is_reg and deg.size > 0) else None
         print(f"=== Inference-only ===")
         print(f"Heuristic=ER TopK={args.topk}  greedy=True  n={args.n} m={args.m}")
         print(f"λ2 ≈ {lam2:.6f}  base≈{base_lam2:.6f}  reward={reward:+.6f} ({args.reward_mode})  steps={steps}")
         print(f"pick@1={diag['pick_top1_rate']:.2f}  pick@5={diag['pick_top5_rate']:.2f}  avgERrank={diag['avg_er_rank']:.1f}  corr(logit,ER)={diag['logit_er_corr']:.2f}  H={diag['mean_entropy']:.2f}")
+        print(f"regular={is_reg}" + (f" k={reg_k}" if reg_k is not None else ""))
         sys.exit(0)
 
     # Training loop
@@ -1255,21 +1216,22 @@ if __name__ == '__main__':
 
 
 """
-python v9.py --train \
-  --episodes 500 \
-  --multi_task --n_min 24 --n_max 40 --dens_min 0.25 --dens_max 0.299 \
+python v11.py --train \
+  --episodes 10000 \
+  --multi_task --n_min 16 --n_max 32 --dens_min 0.0 --dens_max 1.0 \
   --init path --seed 0 \
-  --heuristic er --topk 32 --topk_frac 0.2 \
+  --heuristic er --topk 8 --topk_frac 0.0 \
   --train_temperature 0.8 \
-  --gat_hidden 128 --gat_heads 6 --gat_layers 3 \
+  --gat_hidden 128 --gat_heads 6 --gat_layers 6 \
   --edge_mlp_hidden 256 --value_mlp_hidden 128 \
-  --dens_buckets 20 \
   --lr 2e-4 --gamma 0.99 --lam 0.95 --clip 0.15 --ent_coef 0.03 --vf_coef 0.6 \
-  --ppo_epochs 6 --mb_size 2048 --batch_episodes 4 \
-  --threads 8 --device cpu \
-  --spectral_backend scipy --spectral_refresh_k 6 \
-  --save_model v9_bucket_025_030.pt --save_every 4 --reward_mode logratio
+  --ppo_epochs 3 --mb_size 2048 --batch_episodes 1 \
+  --threads 96 --device cpu \
+  --final_return_reward \
+  --reward_mode ratio --reward_eps 1e-6 \
+  --save_model runs/v11_n96_train.pt --save_every 10 
 """
+
 
 
 
