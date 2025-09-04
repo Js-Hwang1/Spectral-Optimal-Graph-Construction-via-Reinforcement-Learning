@@ -21,7 +21,7 @@ $$
 
 ## Equivalent Matrix Formulation
 
-Let $X\in\{0,1\}^{n\times n}$ be a binary symmetric matrix with zero diagonal encoding the graph (i.e., $X=A$). Impose the edge-budget constraint $\sum_{1\leq i<j\leq n} X_{ij} = m$. Writing $D(X)=\mathrm{diag}(X\mathbf{1}) $ and $L(X)=D(X)-X$, the problem becomes
+Let $X\in\{0,1\}^{n\times n}$ be a binary symmetric matrix with zero diagonal encoding the graph (i.e., $X=A$). Impose the edge-budget constraint $\sum_{1\leq i<j\leq n} X_{ij} = m$. Writing $D(X)=\mathrm{diag}(X\mathbf{1})$ and $L(X)=D(X)-X$, the problem becomes
 
 $$
 \max_{X\in\{0,1\}^{n\times n}}\; \lambda_2\big(L(X)\big)
