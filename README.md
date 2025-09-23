@@ -60,10 +60,10 @@ To tame the combinatorial action space of all $\binom{n}{2}-|E|$ non-edges, we u
 
 - Effective resistance for a non-edge $(u,v)$ under current graph $G$ with Laplacian pseudoinverse $L^+$ is
 
-  $$
-  R_{\mathrm{eff}}(u,v) \;=\; (\mathbf{e}_u-\mathbf{e}_v)^\top L^+ (\mathbf{e}_u-\mathbf{e}_v)
-  \;=\; L^+_{uu} + L^+_{vv} - 2 L^+_{uv}.
-  $$
+$$
+R_{\mathrm{eff}}(u,v) \;=\; (\mathbf{e}_u-\mathbf{e}_v)^\top L^+ (\mathbf{e}_u-\mathbf{e}_v)
+\;=\; L^+_{uu} + L^+_{vv} - 2 L^+_{uv}.
+$$
 
 - At each step, we compute $R_{\mathrm{eff}}$ for all available non-edges (using an eigen decomposition and a zero‑eigenvalue tolerant pseudoinverse) and keep only the K largest values. This Top‑K set is sorted so that the ER top‑1 action is always present at index 0.
 - The ER top‑1 action is used to define a strong greedy baseline and, crucially, as a consistent reference inside training/evaluation while the policy learns to choose among the Top‑K.
@@ -79,9 +79,9 @@ Each node $i$ is embedded using a compact, spectral feature vector designed to b
 - Let $\deg(i)$ be the current degree and $\deg_\mathrm{max}$ its maximum over nodes; define $\mathrm{deg\_norm}(i) = \deg(i)/\max(1,\deg_\mathrm{max})$.
 - The node feature is
 
-  $$
-  x_i = \big[\;\mathrm{deg\_norm}(i),\; \Re(z_i),\; \Im(z_i),\; \varphi_2(i),\; \varphi_3(i)\;\big].
-  $$
+$$
+x_i = \big[\;\mathrm{deg\_norm}(i),\; \Re(z_i),\; \Im(z_i),\; \varphi_2(i),\; \varphi_3(i)\;\big].
+$$
 
 This 5D descriptor mixes local connectivity (degree) with global spectral geometry (Fiedler chart), giving the policy a rotationally stable, informative view of the current graph without hand‑crafted labels.
 
