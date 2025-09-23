@@ -1,5 +1,6 @@
 // Compile: mpicc -O2 -std=c11 test.c -o test
-// Run:     mpirun -np 10 ./test
+// Run:     mpirun -np 10 ./test [TAIL_N]
+
 
 #define _XOPEN_SOURCE 700
 #include <mpi.h>
@@ -24,16 +25,13 @@
 // Point this to your checkpoints directory (you said they're in ./runs)
 static const char *MODELS_DIR  = "runs";
 static const char *PYTHON_BIN  = "python3";
-static const char *SCRIPT_PATH = "v10.py";
-static const char *OUTPUT_DIR  = "output";
+static const char *SCRIPT_PATH = "src/evaluate.py";
+static const char *OUTPUT_DIR  = "output1";
+static const char *GENEX  = "train_ema1";
 
 // Hard-code any (n,m) you want tested:
 static const int NM_PAIRS[][2] = {
-    {16, 32},
-    {20, 40},
-    {24, 64},
-    {32, 96},
-    // add more here...
+{32,300}, {48,300}
 };
 static const int NM_PAIRS_COUNT = (int)(sizeof(NM_PAIRS)/sizeof(NM_PAIRS[0]));
 
@@ -58,6 +56,10 @@ static void ensure_dir(const char *path) {
 static int has_suffix(const char *name, const char *suf) {
     size_t ln=strlen(name), ls=strlen(suf);
     return (ln>=ls && strcmp(name+(ln-ls), suf)==0);
+}
+static int has_prefix(const char *name, const char *pre) {
+    size_t ln=strlen(name), ls=strlen(pre);
+    return (ln>=ls && strncmp(name, pre, ls)==0);
 }
 static int is_regular_file(const char *path) {
     struct stat st;
@@ -105,6 +107,7 @@ static char **list_pt_files(const char *dir, int *count_out) {
     while ((de=readdir(dp))!=NULL) {
         if (!strcmp(de->d_name,".")||!strcmp(de->d_name,"..")) continue;
         if (!has_suffix(de->d_name, ".pt")) continue;
+        if (!has_prefix(de->d_name, GENEX)) continue;
         char path[PATH_MAX];
         snprintf(path,sizeof(path), "%s/%s", dir, de->d_name);
         if (!is_regular_file(path)) continue;
@@ -221,14 +224,6 @@ static void master_flush_logs(ResultCell *results, int n_models, char **models) 
 
         for (int j=0;j<n_models;j++) {
             ResultCell *cell = &results[i*n_models + j];
-            fprintf(out, "====================\n");
-            fprintf(out, "MODEL   : %s\n", basename_const(models[j]));
-            fprintf(out, "CONFIG  : n=%d m=%d\n", n, m);
-            fprintf(out, "WORKER  : %d\n", cell->have ? cell->worker_rank : -1);
-            fprintf(out, "CMD     : %s %s --inference_only --load_model \"%s\" --n %d --m %d --init path --heuristic er --topk 16 --spectral_backend scipy --topk_frac 0.0\n",
-                    PYTHON_BIN, SCRIPT_PATH, models[j], n, m);
-            fprintf(out, "EXIT    : %d\n", cell->have ? cell->exit_code : 999);
-            fprintf(out, "----- OUTPUT BEGIN -----\n");
             if (cell->have) {
                 if (append_file(out, cell->tmpfile)!=0) {
                     fprintf(out, "[MASTER] WARNING: failed to append tmp: %s\n", cell->tmpfile);
@@ -236,7 +231,6 @@ static void master_flush_logs(ResultCell *results, int n_models, char **models) 
             } else {
                 fprintf(out, "[MASTER] WARNING: missing result.\n");
             }
-            fprintf(out, "----- OUTPUT END -----\n\n");
         }
         fclose(out);
 
@@ -270,8 +264,8 @@ static int worker_run_to_tmp(int my_rank, const Task *task, char *tmp_out, size_
 
     char cmd[PATH_MAX*2];
     snprintf(cmd,sizeof(cmd),
-             "%s %s --inference_only --load_model \"%s\" --n %d --m %d "
-             "--init path --heuristic er --topk 16 --spectral_backend scipy --topk_frac 0.0 2>&1",
+             "%s %s  --load_model \"%s\" --n %d --m %d "
+             "--topk 16",
              PYTHON_BIN, SCRIPT_PATH, task->model, task->n, task->m);
 
     FILE *fp = popen(cmd, "r");
@@ -322,6 +316,31 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[MASTER] No .pt files in %s\n", MODELS_DIR);
             for (int r=1;r<size;r++) MPI_Send(NULL,0,MPI_CHAR,r,TAG_TERMINATE,MPI_COMM_WORLD);
             MPI_Finalize(); return 1;
+        }
+
+        // Optional: filter to last TAIL_N models if argv[1] provided
+        if (argc >= 2 && argv[1] && argv[1][0] != '\0') {
+            char *endp = NULL;
+            long tail = strtol(argv[1], &endp, 10);
+            if (endp && *endp == '\0' && tail > 0) {
+                if (tail < n_models) {
+                    int start = n_models - (int)tail;
+                    // Free models we will drop
+                    for (int i = 0; i < start; i++) free(models[i]);
+                    // Shift pointers down
+                    memmove(models, models + start, (size_t)tail * sizeof(char*));
+                    n_models = (int)tail;
+                    fprintf(stderr, "[MASTER] Limiting to last %d models after sort.\n", n_models);
+                } else {
+                    fprintf(stderr, "[MASTER] TAIL_N (%ld) >= total models (%d); running all.\n", tail, n_models);
+                }
+            } else if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+                fprintf(stderr, "Usage: mpirun -np <procs> ./test [TAIL_N]\n");
+                for (int r=1;r<size;r++) MPI_Send(NULL,0,MPI_CHAR,r,TAG_TERMINATE,MPI_COMM_WORLD);
+                MPI_Finalize(); return 0;
+            } else {
+                fprintf(stderr, "[MASTER] Warning: ignoring non-numeric arg '%s'.\n", argv[1]);
+            }
         }
 
         // Summarize plan
