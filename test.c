@@ -23,15 +23,64 @@
 
 // ---------------- CONFIG ----------------
 // Point this to your checkpoints directory (you said they're in ./runs)
-static const char *MODELS_DIR  = "runs";
+static const char *MODELS_DIR  = "models";
 static const char *PYTHON_BIN  = "python3";
 static const char *SCRIPT_PATH = "src/evaluate.py";
-static const char *OUTPUT_DIR  = "output1";
-static const char *GENEX  = "train_ema1";
+static const char *OUTPUT_DIR  = "output4";
+static const char *GENEX  = "train_topk8_A";
 
 // Hard-code any (n,m) you want tested:
 static const int NM_PAIRS[][2] = {
-{32,300}, {48,300}
+{ 48 , 48 },
+{ 48 , 68 },
+{ 48 , 90 },
+{ 48 , 112 },
+{ 48 , 134 },
+{ 48 , 156 },
+{ 48 , 176 },
+{ 48 , 198 },
+{ 48 , 220 },
+{ 48 , 242 },
+{ 48 , 264 },
+{ 48 , 284 },
+{ 48 , 306 },
+{ 48 , 328 },
+{ 48 , 350 },
+{ 48 , 372 },
+{ 48 , 392 },
+{ 48 , 414 },
+{ 48 , 436 },
+{ 48 , 458 },
+{ 48 , 480 },
+{ 48 , 502 },
+{ 48 , 522 },
+{ 48 , 544 },
+{ 48 , 566 },
+{ 48 , 588 },
+{ 48 , 610 },
+{ 48 , 630 },
+{ 48 , 652 },
+{ 48 , 674 },
+{ 48 , 696 },
+{ 48 , 718 },
+{ 48 , 738 },
+{ 48 , 760 },
+{ 48 , 782 },
+{ 48 , 804 },
+{ 48 , 826 },
+{ 48 , 846 },
+{ 48 , 868 },
+{ 48 , 890 },
+{ 48 , 912 },
+{ 48 , 934 },
+{ 48 , 956 },
+{ 48 , 976 },
+{ 48 , 998 },
+{ 48 , 1020 },
+{ 48 , 1042 },
+{ 48 , 1064 },
+{ 48 , 1084 },
+{ 48 , 1106 }
 };
 static const int NM_PAIRS_COUNT = (int)(sizeof(NM_PAIRS)/sizeof(NM_PAIRS[0]));
 

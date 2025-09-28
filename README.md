@@ -4,7 +4,7 @@ This repository studies the following combinatorial design problem: among all si
 
 **Problem (Maximal Algebraic Connectivity at fixed (n, m)).**
 
-- **Graphs:** We consider simple, undirected, unweighted graphs $G=(V,E)$ with $\vertV\vert=n$ and $\vertE\vert=m$. No self-loops or multi-edges are allowed.
+- **Graphs:** We consider simple, undirected, unweighted graphs $G=(V,E)$ with $\vert V\vert=n$ and $\vert E\vert=m$. No self-loops or multi-edges are allowed.
 - **Adjacency and Laplacian:** Let $A\in\{0,1\}^{n\times n}$ be the symmetric adjacency matrix with zero diagonal, and $D=\mathrm{diag}(A\mathbf{1})$ the diagonal degree matrix. The (combinatorial) graph Laplacian is $L(G)=D-A\in\mathbb{R}^{n\times n}$.
 - **Spectrum:** Denote the eigenvalues of $L(G)$ in nondecreasing order by $0=\lambda_1(L(G))\leq\lambda_2(L(G))\leq\cdots\leq\lambda_n(L(G))$. The quantity $\lambda_2(L(G))$ is the algebraic connectivity (Fiedler value) of $G$, and $\lambda_2(L(G))>0$ iff $G$ is connected.
 
@@ -75,7 +75,7 @@ This ER‑guided Top‑K pruning sharply reduces the action space while retainin
 Each node $i$ is embedded using a compact, spectral feature vector designed to be informative yet stable:
 
 - Compute the Laplacian eigenvectors $\varphi_2,\varphi_3$ associated with the two smallest nonzero eigenvalues (Fiedler and the next vector). Normalize by removing mean and dividing by the $\ell_2$ norm.
-- Form a complex 2D spectral chart $z_i = \varphi_2(i) + \mathrm{i}\,\varphi_3(i)$ (with the two real components kept explicitly).
+- Form a complex 2D spectral chart $z_i = \varphi_2(i) + \mathrm{i}\varphi_3(i)$ (with the two real components kept explicitly).
 - Let $\deg(i)$ be the current degree and $\deg_\mathrm{max}$ its maximum over nodes; define $\mathrm{deg\_norm}(i) = \deg(i)/\max(1,\deg_\mathrm{max})$.
 - The node feature is
 

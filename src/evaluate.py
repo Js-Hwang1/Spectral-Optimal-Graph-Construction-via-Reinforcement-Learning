@@ -4,7 +4,7 @@ import time
 import torch
 
 """
-python3 src/evaluate.py --n 32 --m 240 --load_model runs/v11_n96_train_ep08080.pt --topk 8
+python3 src/evaluate.py --n 32 --m 240 --load_model runs/local_v11_ep00075.pt --topk 8
 """
 
 from train import (

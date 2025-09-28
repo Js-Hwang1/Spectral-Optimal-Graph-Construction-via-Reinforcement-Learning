@@ -1,11 +1,23 @@
 .DS_Store
 baselines/.DS_Store
 /runs
+parse.py
+print.py
+outputz/
+data/
+References/
+data/data_ENUM/*
+data/data_ERG/*
+data/data_FVG/*
 
+output4/
+models/
+logs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
 *$py.class
+*.sh
 
 # C extensions
 *.so

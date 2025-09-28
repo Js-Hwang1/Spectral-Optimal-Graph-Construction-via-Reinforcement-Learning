@@ -42,33 +42,73 @@ def build_path_graph(n: int) -> np.ndarray:
     return adj
 
 
-def generate_graph_erg(n: int, m: int, reoptimize_every: int = 1) -> np.ndarray:
+def build_empty_graph(n: int) -> np.ndarray:
+    return np.zeros((n, n), dtype=np.float32)
+
+
+def connected_components(adj: np.ndarray) -> np.ndarray:
+    """Return component labels for each node (0..C-1)."""
+    n = adj.shape[0]
+    labels = -np.ones(n, dtype=np.int64)
+    A = adj.astype(bool)
+    cid = 0
+    for i in range(n):
+        if labels[i] != -1:
+            continue
+        # BFS/DFS
+        stack = [i]
+        labels[i] = cid
+        while stack:
+            u = stack.pop()
+            for v in np.nonzero(A[u])[0]:
+                if labels[v] == -1:
+                    labels[v] = cid
+                    stack.append(int(v))
+        cid += 1
+    return labels
+
+
+def generate_graph_erg(n: int, m: int, reoptimize_every: int = 1, init: str = 'empty') -> np.ndarray:
     """
     Effective-Resistance Greedy (ERG):
-    Start from a path (connected), iteratively add the missing edge with largest effective resistance
-    under the current graph. Recompute resistances every `reoptimize_every` steps.
+    Start from an initializer ('empty' or 'path'), iteratively add the missing edge with
+    largest effective resistance under the current graph. Recompute resistances every
+    `reoptimize_every` steps.
     """
-    m = max(m, n - 1)
-    m = min(m, n * (n - 1) // 2)
-    if m == n * (n - 1) // 2:
+    max_m = n * (n - 1) // 2
+    m = max(0, min(m, max_m))
+    if m == max_m:
         adj = np.ones((n, n), dtype=np.float32)
         np.fill_diagonal(adj, 0.0)
         return adj
 
-    adj = build_path_graph(n)
+    # Initialize graph according to 'init'
+    if init == 'path':
+        adj = build_path_graph(n)
+    else:
+        adj = build_empty_graph(n)
     cur_m = int(np.sum(adj) // 2)
+    # Ensure we don't target fewer edges than already present
+    m = max(m, cur_m)
     steps_since = reoptimize_every
     R = None
     while cur_m < m:
         if steps_since >= reoptimize_every or R is None:
-            # If graph disconnected numerically, add small jitter on path ensures connectivity
             R = effective_resistance_matrix(adj)
             steps_since = 0
+
+        # If graph is disconnected, only consider cross-component edges first
+        comps = connected_components(adj)
+        n_comps = int(comps.max()) + 1
+
         best = None
         best_r = -1.0
         for i in range(n):
             for j in range(i + 1, n):
                 if adj[i, j] == 1.0:
+                    continue
+                if n_comps > 1 and comps[i] == comps[j]:
+                    # skip intra-component edges until connected
                     continue
                 r = float(R[i, j])
                 if r > best_r:
@@ -97,17 +137,20 @@ def write_graph_csv(out_dir: str, n: int, m: int, adj: np.ndarray) -> None:
         f.write("\n\n")
 
 
-def sweep_erg_write(n: int, out_dir: str, reoptimize_every: int = 1) -> None:
+def sweep_erg_write(n: int, out_dir: str, reoptimize_every: int = 1, init: str = 'empty') -> None:
     """
-    Generate ERG sequence from m = n-1 up to m = n*(n-1)/2 and write each graph
-    as data_<n>_<m>.csv into out_dir with first line lambda2 followed by adjacency list.
+    Generate ERG sequence from the initializer's edge count m0 up to m = n*(n-1)/2
+    and write each graph as data_<n>_<m>.csv into out_dir with first line lambda2
+    followed by adjacency list.
     """
-    m_min = max(0, n - 1)
     m_max = n * (n - 1) // 2
-    # Start from path graph (m = n-1)
-    adj = build_path_graph(n)
+    # Start from requested initializer
+    if init == 'path':
+        adj = build_path_graph(n)
+    else:
+        adj = build_empty_graph(n)
     cur_m = int(np.sum(adj) // 2)
-    # Write the initial path
+    # Write the initial graph
     write_graph_csv(out_dir, n, cur_m, adj)
     steps_since = reoptimize_every
     R = None
@@ -115,11 +158,15 @@ def sweep_erg_write(n: int, out_dir: str, reoptimize_every: int = 1) -> None:
         if steps_since >= reoptimize_every or R is None:
             R = effective_resistance_matrix(adj)
             steps_since = 0
+        comps = connected_components(adj)
+        n_comps = int(comps.max()) + 1
         best = None
         best_r = -1.0
         for i in range(n):
             for j in range(i + 1, n):
                 if adj[i, j] == 1.0:
+                    continue
+                if n_comps > 1 and comps[i] == comps[j]:
                     continue
                 r = float(R[i, j])
                 if r > best_r:
@@ -140,15 +187,16 @@ def main():
     parser.add_argument("--n", type=int, required=True, help="Number of nodes")
     parser.add_argument("--m", type=int, default=None, help="Number of edges; if omitted, sweep all m and write to out-dir")
     parser.add_argument("--reoptimize-every", type=int, default=1, help="Recompute resistances every k steps")
+    parser.add_argument("--init", type=str, choices=['empty', 'path'], default='empty', help="Initial graph: 'empty' or 'path' (default: empty)")
     parser.add_argument("--out-dir", type=str, default=os.path.join(os.path.dirname(__file__), "..", "data_ERG"), help="Output directory for sweep writing")
     args = parser.parse_args()
 
     start_time = time.time()
     if args.m is None:
         # Sweep and write all graphs
-        sweep_erg_write(args.n, out_dir=os.path.abspath(args.out_dir), reoptimize_every=args.reoptimize_every)
+        sweep_erg_write(args.n, out_dir=os.path.abspath(args.out_dir), reoptimize_every=args.reoptimize_every, init=args.init)
     else:
-        adj = generate_graph_erg(args.n, args.m, reoptimize_every=args.reoptimize_every)
+        adj = generate_graph_erg(args.n, args.m, reoptimize_every=args.reoptimize_every, init=args.init)
         lam2 = laplacian_second_eigenvalue(adj)
         print(f"n={args.n} m={args.m} lambda2={lam2:.6f} Time taken: {time.time() - start_time:.2f} seconds")
         deg = np.sum(adj, axis=1)
@@ -167,5 +215,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

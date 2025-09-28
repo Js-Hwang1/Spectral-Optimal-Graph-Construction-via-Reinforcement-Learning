@@ -75,6 +75,85 @@ def laplacian_from_adj(adj: np.ndarray) -> np.ndarray:
     L = np.diag(deg) - adj
     return L
 
+def is_connected_adj(adj: np.ndarray) -> bool:
+    n = adj.shape[0]
+    if n == 0:
+        return True
+    # quick check: at least n-1 edges
+    if int(adj.sum() // 2) < n - 1:
+        return False
+    # BFS/DFS from node 0
+    seen = np.zeros(n, dtype=bool)
+    stack = [0]
+    seen[0] = True
+    A = adj.astype(bool)
+    while stack:
+        u = stack.pop()
+        nbrs = np.nonzero(A[u])[0]
+        for v in nbrs:
+            if not seen[v]:
+                seen[v] = True
+                stack.append(int(v))
+    return bool(seen.all())
+
+def laplacian_pseudoinverse(L: np.ndarray) -> np.ndarray:
+    # Full eigen + pseudoinverse (zero eigen(s) -> 0)
+    w, V = np.linalg.eigh(L)
+    tol = 1e-12
+    invw = np.zeros_like(w)
+    mask = w > tol
+    invw[mask] = 1.0 / w[mask]
+    G = (V * invw) @ V.T
+    # symmetrize
+    G = 0.5 * (G + G.T)
+    return G
+
+def G_from_adj(adj: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    G = laplacian_pseudoinverse(laplacian_from_adj(adj))
+    diagG = np.diag(G).copy()
+    return G, diagG
+
+def er_topk_fast_from_G(adj: np.ndarray, G: np.ndarray, diagG: np.ndarray, k: int, frac_cap: float):
+    n = adj.shape[0]
+    iu, iv = np.triu_indices(n, k=1)
+    mask_non = (adj[iu, iv] == 0)
+    iu = iu[mask_non]; iv = iv[mask_non]
+    if iu.size == 0:
+        return np.array([], dtype=np.int64), np.array([], dtype=np.int64), np.array([], dtype=np.float64)
+    er = diagG[iu] + diagG[iv] - 2.0 * G[iu, iv]
+    total = len(er)
+    if frac_cap > 0:
+        cap = int(math.ceil(frac_cap * total))
+        k_eff = min(k, cap)
+    else:
+        k_eff = k
+    kk = min(k_eff, total)
+    if kk <= 0:
+        return np.array([], dtype=np.int64), np.array([], dtype=np.int64), np.array([], dtype=np.float64)
+    idx = np.argpartition(-er, kk-1)[:kk]
+    order = np.argsort(-er[idx])
+    idx = idx[order]
+    return iu[idx], iv[idx], er[idx]
+
+def er_pairs_from_G(G: np.ndarray, diagG: np.ndarray, pairs: np.ndarray) -> np.ndarray:
+    u = pairs[:,0]; v = pairs[:,1]
+    return (diagG[u] + diagG[v] - 2.0 * G[u, v]).astype(np.float64)
+
+def G_rank1_update_edge(G: np.ndarray, diagG: np.ndarray, u: int, v: int, w: float = 1.0):
+    # b = e_u - e_v; g = G b
+    g = G[:, u] - G[:, v]
+    # denom = 1/w + R_uv
+    R_uv = float(G[u, u] + G[v, v] - 2.0 * G[u, v])
+    denom = (1.0 / w) + R_uv
+    if denom <= 0:
+        return G, diagG  # should not happen; be safe
+    # rank-one update
+    outer = np.outer(g, g) / denom
+    G2 = G - outer
+    G2 = 0.5 * (G2 + G2.T)
+    diagG2 = diagG - (g * g) / denom
+    return G2, diagG2
+
 # Algebraic connectivity (λ2) + (optionally) Fiedler/next vectors via SciPy or torch
 
 def lam2_with_vectors(L: np.ndarray, backend: str = "scipy", device: str = "cpu"):
@@ -140,31 +219,120 @@ def er_topk(n:int, adj: np.ndarray, k: int, frac_cap: float) -> Tuple[np.ndarray
     return iu[idx], iv[idx], er[idx]
 
 
+def effective_resistance_for_pairs(adj: np.ndarray, pairs: np.ndarray) -> np.ndarray:
+    """Compute effective resistance R_eff(u,v) for a batch of pairs on the current graph.
+    pairs: (K,2) int ndarray of (u,v) with u<v, no self-edges.
+    Uses Laplacian pseudoinverse via full eigen decomposition (n<=~64 typical here).
+    """
+    n = adj.shape[0]
+    L = laplacian_from_adj(adj)
+    # Full eigen for stability on small n
+    w, V = np.linalg.eigh(L)
+    tol = 1e-12
+    invw = np.zeros_like(w)
+    mask = w > tol
+    invw[mask] = 1.0 / w[mask]
+    Lplus = (V * invw) @ V.T
+    u = pairs[:, 0]
+    v = pairs[:, 1]
+    er = Lplus[u, u] + Lplus[v, v] - 2.0 * Lplus[u, v]
+    return er.astype(np.float64)
+
+
+# -----------------------------
+# Graphicality check (Erdős–Gallai)
+# -----------------------------
+def _is_graphical_erdos_gallai(seq_in: np.ndarray) -> bool:
+    """Return True if degree sequence 'seq_in' (non-negative ints) is graphical.
+    Uses the Erdős–Gallai theorem. Empty or all-zero sequences are graphical.
+    """
+    if seq_in is None:
+        return True
+    s = np.asarray(seq_in, dtype=np.int64)
+    s = s[s > 0]
+    if s.size == 0:
+        return True
+    if np.any(s < 0):
+        return False
+    n = int(s.size)
+    if np.max(s) > n - 1:
+        return False
+    if (np.sum(s) & 1) != 0:
+        return False
+    s.sort()
+    s = s[::-1]  # non-increasing
+    prefix = np.cumsum(s)
+    # precompute tail mins for efficiency
+    for k in range(1, n + 1):
+        left = int(prefix[k - 1])
+        if k < n:
+            tail = s[k:]
+            rhs = k * (k - 1) + int(np.minimum(tail, k).sum())
+        else:
+            rhs = k * (k - 1)
+        if left > rhs:
+            return False
+    return True
+
+
 # -----------------------------
 # Greedy ER baseline (λ2 after greedy ER completion)
 # -----------------------------
 def er_greedy_baseline_lambda2(n: int, adj: np.ndarray, m: int, backend: str = 'scipy', device: str = 'cpu') -> float:
+    """Greedy ER completion to m edges. Uses SMW fast path once connected.
+    Computes λ2 at the end only (eigen once).
+    """
     adj_b = adj.copy()
     base_edges = int(adj_b.sum() // 2)
     steps = max(0, m - base_edges)
+    if steps <= 0:
+        Lb = laplacian_from_adj(adj_b)
+        lam2_b, _, _ = lam2_with_vectors(Lb, backend=backend, device=device)
+        return lam2_b
+    use_green = False
+    G = None; dG = None
+    if is_connected_adj(adj_b):
+        try:
+            G, dG = G_from_adj(adj_b)
+            use_green = True
+        except Exception:
+            use_green = False
     for _ in range(steps):
-        iu, iv, er = er_topk(n, adj_b, k=1, frac_cap=1.0)
+        if use_green and (G is not None):
+            iu, iv, er = er_topk_fast_from_G(adj_b, G, dG, k=1, frac_cap=1.0)
+        else:
+            iu, iv, er = er_topk(n, adj_b, k=1, frac_cap=1.0)
         if len(iu) == 0:
             break
         u = int(iu[0]); v = int(iv[0])
         if adj_b[u, v] == 0.0:
             adj_b[u, v] = 1.0
             adj_b[v, u] = 1.0
+            if use_green and (G is not None):
+                try:
+                    G, dG = G_rank1_update_edge(G, dG, u, v, 1.0)
+                except Exception:
+                    use_green = False
+            else:
+                if not use_green and is_connected_adj(adj_b):
+                    try:
+                        G, dG = G_from_adj(adj_b)
+                        use_green = True
+                    except Exception:
+                        use_green = False
     Lb = laplacian_from_adj(adj_b)
     lam2_b, _, _ = lam2_with_vectors(Lb, backend=backend, device=device)
     return lam2_b
 
 def lam2_after_add_and_fill(n: int, adj: np.ndarray, m: int, u: int, v: int, backend: str = 'scipy', device: str = 'cpu') -> float:
-    adj2 = adj.copy()
-    if u != v and adj2[u, v] == 0.0:
-        adj2[u, v] = 1.0
-        adj2[v, u] = 1.0
-    return er_greedy_baseline_lambda2(n, adj2, m, backend=backend, device=device)
+    """Terminal λ2 after adding (u,v) then greedy-completing to m by ER.
+    Fast path: SMW updates for G once connected; eigen only at the end.
+    """
+    adj_b = adj.copy()
+    if u != v and adj_b[u, v] == 0.0:
+        adj_b[u, v] = 1.0
+        adj_b[v, u] = 1.0
+    return er_greedy_baseline_lambda2(n, adj_b, m, backend=backend, device=device)
 
 # -----------------------------
 # Environment with fast spectral cache
@@ -178,7 +346,7 @@ class EnvConfig:
     spectral_backend: str = 'scipy'
     device: str = 'cpu'
     fast_spectral: bool = True
-    spectral_refresh_k: int = 6
+    spectral_refresh_k: int = 1
 
 class GraphBuildEnv:
     def __init__(self, cfg: EnvConfig):
@@ -215,6 +383,17 @@ class GraphBuildEnv:
             'phi3': phi3.astype(np.float32),
             'deg': self.adj.sum(axis=1).astype(np.float32),
         }
+        # Green's function (Laplacian pseudoinverse) cache for fast ER updates
+        self.use_green = False
+        self.G = None
+        self.diagG = None
+        if is_connected_adj(self.adj):
+            try:
+                G, dG = G_from_adj(self.adj)
+                self.G, self.diagG = G, dG
+                self.use_green = True
+            except Exception:
+                self.use_green = False
         return self._state(refresh=False)
 
     def _state(self, refresh: bool) -> dict:
@@ -265,6 +444,21 @@ class GraphBuildEnv:
         u, v = action
         if u != v and self.adj[u, v] == 0.0:
             self.adj[u, v] = 1.0; self.adj[v, u] = 1.0
+            # Update Green's function if available; else check if we can initialize it now
+            if self.use_green and (self.G is not None):
+                try:
+                    self.G, self.diagG = G_rank1_update_edge(self.G, self.diagG, u, v, 1.0)
+                except Exception:
+                    self.use_green = False
+            else:
+                # If just became connected, initialize G once
+                if is_connected_adj(self.adj):
+                    try:
+                        G, dG = G_from_adj(self.adj)
+                        self.G, self.diagG = G, dG
+                        self.use_green = True
+                    except Exception:
+                        self.use_green = False
         self.step_count += 1
         self.done = (self.step_count >= self.max_steps)
         # Fast mode: no per-step λ2 (reward=0) and defer spectral refresh
@@ -430,6 +624,11 @@ class PPOConfig:
     clip_vf: float = 0.2
     lr_min: float = 5e-5
     aux_q_coef: float = 0.5
+    # Stabilizers
+    ema_decay: float = 0.99
+    consistency_coef: float = 0.0  # KL(student||EMA) coefficient
+    consistency_decay: float = 1.0 # multiply after each PPO update
+    adv_clip: float = 0.0          # clip normalized advantages to [-adv_clip, +adv_clip] (0=off)
 
 class PPOAgent:
     def __init__(self, net: PolicyValueNet, cfg: PPOConfig, device='cpu'):
@@ -437,6 +636,10 @@ class PPOAgent:
         self.cfg = cfg
         self.device = device
         self.opt = torch.optim.Adam(self.net.parameters(), lr=cfg.lr)
+        # Exponential moving average (teacher) network for stable behavior + regularization
+        self.ema_net = copy.deepcopy(self.net).to(device)
+        for p in self.ema_net.parameters():
+            p.requires_grad_(False)
         self.clear_buffer()
 
     def clear_buffer(self):
@@ -454,6 +657,12 @@ class PPOAgent:
         self.rews.append(rew)
         self.vals.append(val)
         self.dones.append(done)
+
+    @torch.no_grad()
+    def _ema_update(self, decay: float):
+        d = decay
+        for p_t, p_s in zip(self.ema_net.parameters(), self.net.parameters()):
+            p_t.data.mul_(d).add_(p_s.data, alpha=(1.0 - d))
 
     def _compute_adv(self, rewards, values, dones, gamma, lam):
         T = len(rewards)
@@ -491,6 +700,9 @@ class PPOAgent:
             # Final safety
             adv = torch.nan_to_num(adv, nan=0.0, posinf=0.0, neginf=0.0)
             ret = torch.nan_to_num(ret, nan=0.0, posinf=0.0, neginf=0.0)
+            # Optional advantage clipping
+            if cfg.adv_clip and cfg.adv_clip > 0.0:
+                adv = adv.clamp(-cfg.adv_clip, +cfg.adv_clip)
 
         # Flatten obs into a list of lazy callables to re-forward per minibatch
         data = list(zip(self.obs, acts, old_logp, vals, adv, ret))
@@ -502,7 +714,7 @@ class PPOAgent:
                 batch = data[i:i+mbsize]
                 if not batch: break
                 new_logps=[]; entropies=[]; values=[]; oldlog=[]; actidx=[]; advantages=[]; returns=[]
-                old_values_list=[]; q_losses=[]
+                old_values_list=[]; q_losses=[]; cons_losses=[]
                 for (obs_t, a, olp, v, gae, R) in batch:
                     (node_feats, adj_dense, cand_edges, edge_feats, global_feats, temp, *rest) = obs_t
                     # Sanitize inputs to be safe against any accidental NaNs/Infs
@@ -511,7 +723,10 @@ class PPOAgent:
                     edge_feats = torch.nan_to_num(edge_feats, nan=0.0, posinf=0.0, neginf=0.0)
                     global_feats = torch.nan_to_num(global_feats, nan=0.0, posinf=0.0, neginf=0.0)
 
-                    q_aux = rest[0] if len(rest) > 0 else None
+                    meta = rest[0] if len(rest) > 0 else None
+                    q_aux = None
+                    if isinstance(meta, dict):
+                        q_aux = meta.get('q_aux', None)
                     logits, value, q_pred = self.net(node_feats, adj_dense, cand_edges, edge_feats, global_feats)
                     logits = torch.nan_to_num(logits, nan=0.0, posinf=1e6, neginf=-1e6)
                     dist = Categorical(logits=logits / temp)
@@ -523,6 +738,18 @@ class PPOAgent:
                     advantages.append(gae)
                     returns.append(R)
                     old_values_list.append(v)
+
+                    # Consistency regularization to EMA teacher (no grad through teacher)
+                    if cfg.consistency_coef and cfg.consistency_coef > 0.0:
+                        with torch.no_grad():
+                            logits_t, _, _ = self.ema_net(node_feats, adj_dense, cand_edges, edge_feats, global_feats)
+                            logits_t = torch.nan_to_num(logits_t, nan=0.0, posinf=1e6, neginf=-1e6)
+                        p = torch.softmax(logits / temp, dim=-1)
+                        logp = torch.log_softmax(logits / temp, dim=-1)
+                        q = torch.softmax(logits_t / temp, dim=-1)
+                        # KL(P||Q) across candidates
+                        kl_pq = torch.sum(p * (logp - torch.log(q + 1e-8)), dim=-1)
+                        cons_losses.append(kl_pq.mean())
 
                     # Auxiliary Q MSE on available targets
                     if q_aux is not None:
@@ -542,6 +769,7 @@ class PPOAgent:
                 advantages = torch.stack(advantages)
                 returns = torch.stack(returns)
                 old_values = torch.stack(old_values_list)
+                cons_loss_total = (torch.stack(cons_losses).mean() if len(cons_losses)>0 else torch.tensor(0.0, device=self.device))
 
                 ratio = torch.exp(new_logps - oldlog)
                 ratio = torch.nan_to_num(ratio, nan=1.0, posinf=10.0, neginf=0.0)
@@ -556,7 +784,7 @@ class PPOAgent:
                     val_loss = 0.5 * F.mse_loss(values, returns)
                 ent_loss = -cfg.ent_coef * entropies.mean()
                 q_loss_total = torch.stack(q_losses).mean() if len(q_losses)>0 else torch.tensor(0.0, device=self.device)
-                loss = pol_loss + cfg.vf_coef*val_loss + ent_loss + cfg.aux_q_coef * q_loss_total
+                loss = pol_loss + cfg.vf_coef*val_loss + ent_loss + cfg.aux_q_coef * q_loss_total + cfg.consistency_coef * cons_loss_total
 
                 # A tiny KL readout
                 with torch.no_grad():
@@ -570,6 +798,8 @@ class PPOAgent:
                     ( -self.cfg.ent_coef * entropies.mean() ).backward()
                     nn.utils.clip_grad_norm_(self.net.parameters(), 1.0)
                     self.opt.step()
+                    # keep EMA in sync softly even on light step
+                    self._ema_update(self.cfg.ema_decay)
                     # accumulate logs and break early from this epoch
                     losses['kl'] += float(approx_kl.detach().cpu())
                     losses['clipfrac'] += float(((torch.abs(ratio-1.0) > self.cfg.clip).float().mean()).detach().cpu())
@@ -580,6 +810,8 @@ class PPOAgent:
                 loss.backward()
                 nn.utils.clip_grad_norm_(self.net.parameters(), 1.0)
                 self.opt.step()
+                # Update EMA teacher
+                self._ema_update(self.cfg.ema_decay)
 
                 losses['loss'] += float(loss.detach().cpu())
                 losses['pol']  += float(pol_loss.detach().cpu())
@@ -592,15 +824,20 @@ class PPOAgent:
         # average by number of minibatches processed
         denom = max(1, (len(data)+mbsize-1)//mbsize * cfg.ppo_epochs)
         for k in losses: losses[k] /= denom
+        # Decay consistency regularizer if requested
+        if self.cfg.consistency_decay and self.cfg.consistency_decay != 1.0:
+            self.cfg.consistency_coef = float(self.cfg.consistency_coef) * float(self.cfg.consistency_decay)
         self.clear_buffer()
         return losses
 
     # Save/load with arch metadata
-    def save(self, path:str, arch:dict):
+    def save(self, path:str, arch:dict, prefer_ema: bool = False):
+        state = self.ema_net.state_dict() if prefer_ema else self.net.state_dict()
         obj = {
             'arch': arch,
-            'state_dict': self.net.state_dict(),
+            'state_dict': state,
             'opt': self.opt.state_dict(),
+            'ema_state_dict': self.ema_net.state_dict(),
         }
         torch.save(obj, path)
 
@@ -628,6 +865,20 @@ def bucket_id_from_density(n:int, m:int, buckets:int)->int:
     bid = int(min(buckets-1, max(0, math.floor(dens * buckets))))
     return bid
 
+def size_bucket_id(n:int, n_min:int, n_max:int, buckets:int)->int:
+    if buckets <= 1:
+        return 0
+    span = max(1, n_max - n_min + 1)
+    # Equal-width integer bins
+    width = math.ceil(span / buckets)
+    idx = (n - n_min) // max(1, width)
+    return int(min(buckets-1, max(0, idx)))
+
+def composite_bucket_id(n:int, m:int, n_min:int, n_max:int, n_buckets:int, dens_buckets:int)->int:
+    bi = size_bucket_id(n, n_min, n_max, n_buckets)
+    bj = bucket_id_from_density(n, m, dens_buckets)
+    return int(bi * dens_buckets + bj)
+
 def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, train=True, ep: int = 0):
     # Greedy ER baseline for terminal reward (for logging/optionally final assignment)
     adj0 = env.adj.copy()
@@ -654,14 +905,159 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
     ro_clip  = float(getattr(args, 'rollout_reward_clip', 0.0))
 
     while not done:
-        # Candidate ER Top-K
-        iu, iv, ers = er_topk(env.n, env.adj, k=args.topk, frac_cap=args.topk_frac)
-        if len(iu) == 0:
+        # Current cached state (no refresh)
+        st = env._state(refresh=False)
+        
+        # Determine two-phase regular-first targets
+        n = env.n; m = env.m
+        # Use live degrees for accuracy (cache may be stale without refresh)
+        deg_abs = env.adj.sum(axis=1).astype(np.float32)
+        e_now = int(env.adj.sum() // 2)
+        max_deg = float(deg_abs.max()) if deg_abs.size > 0 else 0.0
+        reg_possible = ((2 * m) % n == 0)
+        if reg_possible:
+            k_reg_target = int((2 * m) // n)  # exact k
+            m1 = m
+        else:
+            k_reg_target = int(math.floor((2 * m) / n))
+            m1 = (n * k_reg_target) // 2
+        # Phase-1 if we can still add edges and there exist deficits relative to k_tgt
+        deficits = np.maximum(0.0, k_reg_target - deg_abs)
+        have_deficit = bool(np.any(deficits > 0.5))  # tolerate float
+        phase1 = (e_now < m1) and have_deficit and (k_reg_target > 0) and (k_reg_target >= int(math.floor(max_deg)))
+
+        # Candidate generation
+        # Always compute ER Top-K as a robust baseline (fast if connected & G available)
+        if getattr(env, 'use_green', False) and (env.G is not None) and (env.diagG is not None):
+            iu_er, iv_er, ers_er = er_topk_fast_from_G(env.adj, env.G, env.diagG, k=args.topk, frac_cap=args.topk_frac)
+        else:
+            iu_er, iv_er, ers_er = er_topk(n, env.adj, k=args.topk, frac_cap=args.topk_frac)
+        if len(iu_er) == 0:
             _ = env._state(refresh=True)
             break
 
-        # Current (no refresh)
-        st = env._state(refresh=False)
+        # Build deficit-driven candidates in Phase-1 to steer toward near-regular
+        if phase1:
+            # All non-edges between deficit nodes
+            uu_all, vv_all = np.triu_indices(n, k=1)
+            mask_non = (env.adj[uu_all, vv_all] == 0)
+            uu_all = uu_all[mask_non]; vv_all = vv_all[mask_non]
+            # filter to deficit pairs
+            if uu_all.size > 0:
+                def_u_all = (k_reg_target - deg_abs[uu_all]).astype(np.float32)
+                def_v_all = (k_reg_target - deg_abs[vv_all]).astype(np.float32)
+                mask_def = (def_u_all > 0.5) & (def_v_all > 0.5)
+                uu_all = uu_all[mask_def]; vv_all = vv_all[mask_def]
+
+            # Erdos-Gallai feasibility filter per candidate (on residual deficits, ignoring current adjacency constraints)
+            cand_u = []
+            cand_v = []
+            if uu_all.size > 0:
+                deficits_int = np.maximum(0, np.rint(k_reg_target - deg_abs).astype(np.int64))
+                for uu_i, vv_i in zip(uu_all, vv_all):
+                    if deficits_int[uu_i] <= 0 or deficits_int[vv_i] <= 0:
+                        continue
+                    seq = deficits_int.copy()
+                    seq[uu_i] -= 1
+                    seq[vv_i] -= 1
+                    if _is_graphical_erdos_gallai(seq):
+                        cand_u.append(int(uu_i)); cand_v.append(int(vv_i))
+
+            if len(cand_u) == 0:
+                # Havel–Hakimi style fallback: connect highest deficits greedily if possible
+                deficits_int = np.maximum(0, np.rint(k_reg_target - deg_abs).astype(np.int64))
+                nodes = np.argsort(-deficits_int)  # descending deficits
+                picked = False
+                for i_idx in range(len(nodes)):
+                    u0 = int(nodes[i_idx])
+                    if deficits_int[u0] <= 0:
+                        break
+                    # pick a v among next highest deficits, non-adjacent to u0
+                    for j_idx in range(i_idx + 1, len(nodes)):
+                        v0 = int(nodes[j_idx])
+                        if deficits_int[v0] <= 0:
+                            continue
+                        if env.adj[u0, v0] == 0.0 and u0 != v0:
+                            cand_u = [u0]; cand_v = [v0]
+                            picked = True
+                            break
+                    if picked:
+                        break
+
+            if len(cand_u) > 0:
+                cu = np.array(cand_u, dtype=np.int64)
+                cv = np.array(cand_v, dtype=np.int64)
+                # Compute ER for deficit candidates (fast via Green if available)
+                pairs = np.stack([cu, cv], axis=1)
+                try:
+                    if getattr(env, 'use_green', False) and (env.G is not None) and (env.diagG is not None):
+                        ers_def = er_pairs_from_G(env.G, env.diagG, pairs).astype(np.float32)
+                    else:
+                        ers_def = effective_resistance_for_pairs(env.adj, pairs).astype(np.float32)
+                except Exception:
+                    ers_def = np.zeros((pairs.shape[0],), dtype=np.float32)
+
+                # Compute Fiedler gain proxy (phi2 difference squared)
+                phi2_vec = st['node_feats'][:, 3].astype(np.float32)
+                phi2_gain = (phi2_vec[cu] - phi2_vec[cv]) ** 2
+
+                # Degree deficits for regularization potential reduction
+                def_u = (k_reg_target - deg_abs[cu]).astype(np.float32)
+                def_v = (k_reg_target - deg_abs[cv]).astype(np.float32)
+
+                # Adaptive weights: emphasize regularity early, spectral later
+                total_def = float(np.maximum(0.0, k_reg_target - deg_abs).sum())
+                denom_def = float(max(1.0, n * max(1, k_reg_target)))
+                w_reg = min(1.0, max(0.0, total_def / denom_def))
+                alpha = w_reg
+                beta  = (1.0 - w_reg) * 0.30
+                gamma = (1.0 - w_reg) * 0.70
+
+                score = alpha * (def_u + def_v) + beta * ers_def + gamma * phi2_gain
+
+                # Preselect top-K deficit candidates by the composite score
+                K_def = int(max(1, args.topk))
+                if score.size > K_def:
+                    idx = np.argpartition(-score, K_def-1)[:K_def]
+                    order = np.argsort(-score[idx])
+                    idx = idx[order]
+                    cu, cv = cu[idx], cv[idx]
+                    ers_def = ers_def[idx]
+                iu = cu; iv = cv; ers = ers_def
+            else:
+                # Final fallback to ER Top-K if no feasible deficit pair exists
+                iu = iu_er; iv = iv_er; ers = ers_er
+        else:
+            # Phase-2 (refinement): use ER Top-K directly (optionally could blend degree-variance pairs)
+            iu = iu_er; iv = iv_er; ers = ers_er
+
+        # Optional candidate augmentation with random non-ER edges during Phase-2 only (exploration)
+        if (not phase1) and getattr(args, 'rand_cand_frac', 0.0) and args.rand_cand_frac > 0.0:
+            K = len(iu)
+            if K > 0:
+                uu_all, vv_all = np.triu_indices(n, k=1)
+                mask_non = (env.adj[uu_all, vv_all] == 0)
+                uu_all = uu_all[mask_non]; vv_all = vv_all[mask_non]
+                cand_set = set(zip(iu.tolist(), iv.tolist()))
+                pool = [(int(uu_all[t]), int(vv_all[t])) for t in range(len(uu_all)) if (int(uu_all[t]), int(vv_all[t])) not in cand_set]
+                if len(pool) > 0:
+                    K_rand = min(min(int(math.ceil(args.rand_cand_frac * K)), int(getattr(args, 'rand_cand_max', K))), len(pool))
+                    if K_rand > 0:
+                        rand_pairs = random.sample(pool, K_rand)
+                        rp = np.array(rand_pairs, dtype=np.int64)
+                        try:
+                            if getattr(env, 'use_green', False) and (env.G is not None) and (env.diagG is not None):
+                                ers_rand = er_pairs_from_G(env.G, env.diagG, rp).astype(np.float32)
+                            else:
+                                ers_rand = effective_resistance_for_pairs(env.adj, rp).astype(np.float32)
+                        except Exception:
+                            ers_rand = np.zeros((K_rand,), dtype=np.float32)
+                        iu = np.concatenate([iu, rp[:,0]])
+                        iv = np.concatenate([iv, rp[:,1]])
+                        ers = np.concatenate([ers, ers_rand])
+        if len(iu) == 0:
+            _ = env._state(refresh=True)
+            break
         node_feats = torch.tensor(st['node_feats'], dtype=torch.float32, device=agent.device)
         adj_dense = torch.tensor(env.adj, dtype=torch.float32, device=agent.device)
         cand_edges = torch.tensor(np.stack([iu,iv], axis=1), dtype=torch.long, device=agent.device)
@@ -731,9 +1127,39 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
 
         global_feats = torch.tensor([math.log1p(env.n), dens_target, progress, lam2_now, is_regular_possible], dtype=torch.float32, device=agent.device)
 
-        logits, value, q_pred = net(node_feats, adj_dense, cand_edges, edge_feats, global_feats)
+        # Optionally act with EMA teacher for added stability
+        act_model = net
+        if getattr(agent, 'ema_net', None) is not None:
+            use_ema_train = train and getattr(args, 'ema_policy', False) and (ep >= int(getattr(args, 'ema_start', 0)))
+            use_ema_eval  = (not train) and getattr(args, 'ema_infer', False)
+            if use_ema_train or use_ema_eval:
+                act_model = agent.ema_net
+
+        logits, value, q_pred = act_model(node_feats, adj_dense, cand_edges, edge_feats, global_feats)
         dist = Categorical(logits=logits / (args.train_temperature if train else 1.0))
         a_idx = dist.sample() if train else torch.argmax(dist.logits)
+
+        # If we are close to completion in Phase-2 during inference, do a cheap lookahead:
+        # evaluate λ2 after add+greedy-complete for each candidate and pick the best.
+        # This guards against unlucky choices when only a few edges remain.
+        if (not train):
+            edges_left_total = m - e_now
+            if (not phase1) and edges_left_total <= 3:
+                try:
+                    with torch.no_grad():
+                        best_idx = int(a_idx.detach().cpu().item())
+                        best_val = -1e30
+                        Kc = cand_edges.size(0)
+                        for ci in range(Kc):
+                            uu_i = int(cand_edges[ci,0].item())
+                            vv_i = int(cand_edges[ci,1].item())
+                            lam_i = lam2_after_add_and_fill(n, env.adj, m, uu_i, vv_i, backend=env.backend, device=env.device)
+                            if lam_i > best_val:
+                                best_val = lam_i
+                                best_idx = ci
+                        a_idx = torch.as_tensor(best_idx, dtype=torch.long, device=agent.device)
+                except Exception:
+                    pass
 
         # --- per-step diagnostics ---
         with torch.no_grad():
@@ -741,12 +1167,19 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
             diag_acc['entropy_sum'] += ent_step
 
             logits_np = logits.detach().cpu().numpy()
-            # Pearson proxy for monotonicity vs ER
+            # Pearson proxy for monotonicity vs ER (safe, no warnings)
             if logits_np.size > 1:
-                c = np.corrcoef(logits_np, ers)[0, 1]
-                if np.isfinite(c):
-                    diag_acc['corr_sum'] += float(c)
-                    diag_acc['corr_count'] += 1
+                x = logits_np.astype(np.float64, copy=False)
+                y = np.asarray(ers, dtype=np.float64)
+                x_mean = x.mean(); y_mean = y.mean()
+                x_cent = x - x_mean; y_cent = y - y_mean
+                sx = float(np.sqrt(np.sum(x_cent * x_cent) / max(1, x_cent.size - 1)))
+                sy = float(np.sqrt(np.sum(y_cent * y_cent) / max(1, y_cent.size - 1)))
+                if sx > 1e-12 and sy > 1e-12:
+                    c = float(np.mean(x_cent * y_cent) / (sx * sy))
+                    if np.isfinite(c):
+                        diag_acc['corr_sum'] += c
+                        diag_acc['corr_count'] += 1
 
             chosen_k = int(a_idx.detach().cpu().item())
             diag_acc['top1_hits'] += int(chosen_k == 0)
@@ -881,6 +1314,9 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
         next_state, _, done, info = env.step((u_pick, v_pick), refresh_now=False)
 
         if train:
+            meta = {
+                'q_aux': q_aux if getattr(args, 'rollout_reward', False) else None,
+            }
             agent.store(
                 (
                     node_feats.detach(),
@@ -889,7 +1325,7 @@ def run_episode(env: GraphBuildEnv, net: PolicyValueNet, agent: PPOAgent, args, 
                     edge_feats.detach(),          
                     global_feats.detach(),
                     torch.tensor(args.train_temperature, device=agent.device),
-                    q_aux if getattr(args, 'rollout_reward', False) else None
+                    meta,
                 ),
                 a_idx.detach(),
                 old_logp.detach(),
@@ -948,17 +1384,26 @@ def main():
     p.add_argument('--n_max', type=int, default=32)
     p.add_argument('--dens_min', type=float, default=0.03)
     p.add_argument('--dens_max', type=float, default=1.0)
+    # Multi-task bucketization and sampler controls
+    p.add_argument('--n_buckets', type=int, default=4, help='Number of n-buckets for hardness-aware sampling')
+    p.add_argument('--dens_buckets', type=int, default=6, help='Number of density buckets in [dens_min, dens_max]')
+    p.add_argument('--sampler_alpha', type=float, default=0.5, help='Mixture weight of hardness-aware distribution vs uniform (0..1)')
+    p.add_argument('--sampler_tau', type=float, default=0.5, help='Temperature for hardness weighting exp(-ma/tau)')
+    p.add_argument('--sampler_warmup', type=int, default=100, help='Episodes of pure uniform sampling before hardness kicks in')
+    p.add_argument('--sampler_smooth', type=float, default=0.1, help='EMA smoothing factor for per-bucket reward moving averages')
     p.add_argument('--init', type=str, default='path')
 
     # Heuristic pruning
     p.add_argument('--heuristic', type=str, default='er')
     p.add_argument('--topk', type=int, default=32)
     p.add_argument('--topk_frac', type=float, default=0.2)
+    p.add_argument('--rand_cand_frac', type=float, default=0.0, help='Append this fraction of random non-ER candidate edges (0 to disable).')
+    p.add_argument('--rand_cand_max', type=int, default=16, help='Max number of random candidates to append per step.')
 
     # Spectral
     p.add_argument('--spectral_backend', type=str, default='scipy', choices=['scipy','torch'])
     p.add_argument('--fast_spectral', action='store_true')
-    p.add_argument('--spectral_refresh_k', type=int, default=6)
+    p.add_argument('--spectral_refresh_k', type=int, default=1)
 
     # Model arch
     p.add_argument('--gat_hidden', type=int, default=64)
@@ -979,6 +1424,19 @@ def main():
     p.add_argument('--mb_size', type=int, default=4096)
     p.add_argument('--batch_episodes', type=int, default=8)
     p.add_argument('--train_temperature', type=float, default=1.0)
+    # Endgame annealing to reduce oscillations
+    p.add_argument('--anneal_endgame', action='store_true', help='Enable endgame annealing of lr/entropy/clip/temperature')
+    p.add_argument('--anneal_start_frac', type=float, default=0.7, help='Fraction of training after which to start annealing')
+    p.add_argument('--lr_end', type=float, default=5e-5, help='Final LR at the end of annealing window')
+    p.add_argument('--clip_end', type=float, default=0.10, help='Final PPO clip at the end of annealing window')
+    p.add_argument('--ent_end', type=float, default=0.005, help='Final entropy coef at the end of annealing window')
+    p.add_argument('--temp_end', type=float, default=0.3, help='Final sampling temperature at the end of annealing window')
+    # EMA/consistency stabilizers
+    p.add_argument('--ema_policy', action='store_true', help='Use EMA teacher policy for data collection (behavior) after warmup')
+    p.add_argument('--ema_start', type=int, default=0, help='Episode to start acting with EMA')
+    p.add_argument('--ema_decay', type=float, default=0.99, help='EMA decay for teacher network')
+    p.add_argument('--consistency_coef', type=float, default=0.0, help='KL(student||EMA) regularizer weight (0 to disable)')
+    p.add_argument('--consistency_decay', type=float, default=1.0, help='Multiplicative decay of consistency_coef after each PPO update')
 
     # Terminal reward vs ER baseline (logging & optional final-return assignment)
     p.add_argument('--reward_mode', type=str, default='margin', choices=['margin','ratio','logratio'],
@@ -1009,6 +1467,7 @@ def main():
     p.add_argument('--guard_patience', type=int, default=2, help='How many consecutive window drops before rollback')
     p.add_argument('--lr_min', type=float, default=5e-5, help='Lower bound for adaptive LR')
     p.add_argument('--aux_q_coef', type=float, default=0.5, help='Weight for auxiliary Q-head regression to terminal λ2 targets.')
+    p.add_argument('--adv_clip', type=float, default=0.0, help='Clip normalized advantages to [-adv_clip,+adv_clip] (0=off)')
 
     # Runtime
     p.add_argument('--episodes', type=int, default=2000)
@@ -1020,6 +1479,7 @@ def main():
     p.add_argument('--save_model', type=str, default='v11.pt')
     p.add_argument('--load_model', type=str, default='')
     p.add_argument('--save_every', type=int, default=200)
+    p.add_argument('--save_ema_teacher', action='store_true', help='Save EMA teacher weights instead of student as primary state_dict')
     p.add_argument('--log_csv', type=str, default='', help='Optional CSV file to append per-episode metrics')
     p.add_argument('--train_log', type=str, default='train.log', help='Path to JSONL file for detailed per-step logs (empty to disable).')
     p.add_argument('--log_detail_every', type=int, default=1, help='Log detailed steps every N episodes.')
@@ -1039,14 +1499,17 @@ def main():
         'heads': args.gat_heads,
         'layers': args.gat_layers,
         'edge_mlp_hidden': args.edge_mlp_hidden,
-        'value_mlp_hidden': args.value_mlp_hidden
+        'value_mlp_hidden': args.value_mlp_hidden,
+        'buckets': args.dens_buckets
     }
 
     net = PolicyValueNet(arch['node_in'], arch['hid'], arch['heads'], arch['layers'], arch['edge_mlp_hidden'], arch['value_mlp_hidden'],device=device.type).to(device) 
     ppo_cfg = PPOConfig(
         lr=args.lr, gamma=args.gamma, lam=args.lam, clip=args.clip, ent_coef=args.ent_coef, vf_coef=args.vf_coef,
         ppo_epochs=args.ppo_epochs, mb_size=args.mb_size, train_temperature=args.train_temperature,
-        target_kl=args.target_kl, clip_vf=args.clip_vf, lr_min=args.lr_min, aux_q_coef=args.aux_q_coef
+        target_kl=args.target_kl, clip_vf=args.clip_vf, lr_min=args.lr_min, aux_q_coef=args.aux_q_coef,
+        ema_decay=args.ema_decay, consistency_coef=args.consistency_coef, consistency_decay=args.consistency_decay,
+        adv_clip=args.adv_clip
     )
     agent = PPOAgent(net, ppo_cfg, device=device)
 
@@ -1066,6 +1529,11 @@ def main():
 
         # Load weights/opt
         net.load_state_dict(obj['state_dict'], strict=True)
+        # Load EMA teacher if present; default to same weights if absent
+        try:
+            agent.ema_net.load_state_dict(obj.get('ema_state_dict', obj['state_dict']))
+        except Exception:
+            pass
         try:
             agent.opt.load_state_dict(obj['opt'])
         except Exception:
@@ -1078,22 +1546,77 @@ def main():
         except Exception:
             pass
 
-    def sample_task():
-        if not args.multi_task:
-            return args.n, args.m
-        n = random.randint(args.n_min, args.n_max)
+    # --- Hardness-aware task sampler state ---
+    Bn = max(1, int(args.n_buckets)); Bd = max(1, int(args.dens_buckets)); B = Bn * Bd
+    bucket_ma = np.zeros(B, dtype=np.float64)
+    bucket_cnt = np.zeros(B, dtype=np.int64)
+
+    def _bucket_bounds():
+        # integer size buckets
+        span = max(1, args.n_max - args.n_min + 1)
+        width = int(math.ceil(span / Bn))
+        n_bounds = []
+        for bi in range(Bn):
+            lo = args.n_min + bi * width
+            hi = min(args.n_max, lo + width - 1)
+            n_bounds.append((lo, hi))
+        # density buckets in [dens_min, dens_max]
+        d_bounds = []
+        for bj in range(Bd):
+            lo = args.dens_min + (args.dens_max - args.dens_min) * (bj / Bd)
+            hi = args.dens_min + (args.dens_max - args.dens_min) * ((bj+1) / Bd)
+            lo = max(args.dens_min, min(args.dens_max, lo))
+            hi = max(args.dens_min, min(args.dens_max, hi))
+            d_bounds.append((lo, hi))
+        return n_bounds, d_bounds
+
+    n_bounds, d_bounds = _bucket_bounds()
+
+    def _bucket_prob(ep_idx:int):
+        # mixture between uniform and hardness-aware softmax over -ma
+        alpha = float(args.sampler_alpha) if ep_idx >= int(args.sampler_warmup) else 0.0
+        if alpha <= 0.0:
+            return np.ones(B, dtype=np.float64) / B
+        x = -bucket_ma / max(1e-6, float(args.sampler_tau))
+        x = x - x.max()  # stable
+        w = np.exp(x)
+        w = w / max(1e-12, w.sum())
+        u = np.ones(B, dtype=np.float64) / B
+        p = (1.0 - alpha) * u + alpha * w
+        # renorm to be safe
+        p = p / max(1e-12, p.sum())
+        return p
+
+    def _sample_from_bucket(bidx:int) -> Tuple[int,int]:
+        bi = bidx // Bd; bj = bidx % Bd
+        n_lo, n_hi = n_bounds[bi]
+        # sample n uniformly in bucket bounds
+        n = random.randint(n_lo, n_hi)
+        # sample density in bucket bounds
+        d_lo, d_hi = d_bounds[bj]
+        t = random.uniform(d_lo, d_hi)
+        # map to m
         Mmax = n * (n - 1) // 2
         base = n - 1
-        # Sample normalized density t in [dens_min, dens_max]
-        t = random.uniform(args.dens_min, args.dens_max)
         m = int(round(base + t * (Mmax - base)))
         m = max(base, min(Mmax, m))
         return n, m
+
+    def sample_task(ep_idx:int):
+        if not args.multi_task:
+            return args.n, args.m, 0
+        p = _bucket_prob(ep_idx)
+        b = int(np.random.choice(np.arange(B), p=p))
+        n, m = _sample_from_bucket(b)
+        return n, m, b
 
     if args.inference_only:
         n, m = args.n, args.m
         cfg = EnvConfig(n=n, m=m, init=args.init, spectral_backend=args.spectral_backend, device=device.type, fast_spectral=False, spectral_refresh_k=args.spectral_refresh_k)
         env = GraphBuildEnv(cfg)
+        # Allow using EMA teacher for inference via flag
+        if getattr(args, 'ema_policy', False):
+            setattr(args, 'ema_infer', True)
         lam2, reward, steps, base_lam2, diag = run_episode(env, net, agent, args, train=False, ep=0)
         # Determine if the final graph is regular (all degrees equal)
         deg = np.rint(env.adj.sum(axis=1)).astype(int)
@@ -1115,9 +1638,22 @@ def main():
     best_state = copy.deepcopy(agent.net.state_dict())
     best_opt   = copy.deepcopy(agent.opt.state_dict())
     guard_strikes = 0
+    # --- Endgame anneal baselines ---
+    anneal = {
+        'enabled': bool(getattr(args, 'anneal_endgame', False)),
+        'start_ep': int(math.floor(args.episodes * max(0.0, min(0.99, float(getattr(args, 'anneal_start_frac', 0.7)))))),
+        'lr0': float(agent.opt.param_groups[0]['lr']),
+        'clip0': float(agent.cfg.clip),
+        'ent0': float(agent.cfg.ent_coef),
+        'temp0': float(args.train_temperature),
+        'lr1': float(getattr(args, 'lr_end', args.lr_min)),
+        'clip1': float(getattr(args, 'clip_end', 0.10)),
+        'ent1': float(getattr(args, 'ent_end', 0.005)),
+        'temp1': float(getattr(args, 'temp_end', 0.3)),
+    }
     t0=time.time()
     for ep in range(1, args.episodes+1):
-        n, m = sample_task()
+        n, m, bidx = sample_task(ep)
         # Use fast spectral only when NOT using rollout-shaped rewards.
         # With rollout shaping we need exact, fresh spectral features each step for low-variance credit.
         use_fast = (args.fast_spectral and (not args.rollout_reward))
@@ -1133,6 +1669,12 @@ def main():
         lam2, reward, steps, base_lam2, diag = run_episode(env, net, agent, args, train=True, ep=ep)
         dens = normalized_density(n, m)
 
+        # Update per-bucket moving average
+        if 0 <= bidx < B:
+            beta = float(args.sampler_smooth)
+            bucket_ma[bidx] = (1.0 - beta) * bucket_ma[bidx] + beta * float(reward)
+            bucket_cnt[bidx] += 1
+
         # buffer flush policy: update every batch_episodes
         if (ep % args.batch_episodes)==0:
             stats = agent.ppo_update()
@@ -1145,14 +1687,28 @@ def main():
                 elif stats['kl'] < args.target_kl * 0.5:
                     new_lr = min(args.lr, cur_lr * 1.05)
                     agent.opt.param_groups[0]['lr'] = new_lr
+            # Endgame annealing to damp oscillations
+            if anneal['enabled'] and ep >= anneal['start_ep']:
+                t = (ep - anneal['start_ep']) / max(1, args.episodes - anneal['start_ep'])
+                t = min(1.0, max(0.0, t))
+                # Only decrease LR from current value towards lr1 (monotone non-increasing)
+                lr_target = anneal['lr0'] + (anneal['lr1'] - anneal['lr0']) * t
+                cur_lr = agent.opt.param_groups[0]['lr']
+                agent.opt.param_groups[0]['lr'] = min(cur_lr, lr_target)
+                # Linearly anneal clip, entropy, and temperature
+                agent.cfg.clip = anneal['clip0'] + (anneal['clip1'] - anneal['clip0']) * t
+                agent.cfg.ent_coef = anneal['ent0'] + (anneal['ent1'] - anneal['ent0']) * t
+                args.train_temperature = anneal['temp0'] + (anneal['temp1'] - anneal['temp0']) * t
             print(
                 f"[ep {ep:5d}] n={n:2d} m={m:4d} dens={dens:.2f} λ2={lam2:.3f} base={base_lam2:.3f} reward={reward:+.3f} steps={steps:3d} | upd loss={stats['loss']:.4f} pol={stats['pol']:.4f} val={stats['val']:.4f} q={stats['q']:.4f} ent={stats['ent']:.4f} kl={stats['kl']:.4f} clipfrac={stats['clipfrac']:.2f} lr={agent.opt.param_groups[0]['lr']:.2e} ent_coef={agent.cfg.ent_coef:.3f}"
                 + f" pick@1={diag['pick_top1_rate']:.2f} pick@5={diag['pick_top5_rate']:.2f} avgERrank={diag['avg_er_rank']:.1f} corr={diag['logit_er_corr']:.2f} H={diag['mean_entropy']:.2f}"
+                + f" bucket={bidx}"
             )
         else:
             print(
                 f"[ep {ep:5d}] n={n:2d} m={m:4d} dens={dens:.2f} λ2={lam2:.3f} base={base_lam2:.3f} reward={reward:+.3f} steps={steps:3d} | no-update lr={agent.opt.param_groups[0]['lr']:.2e} ent_coef={agent.cfg.ent_coef:.3f}"
                 + f" pick@1={diag['pick_top1_rate']:.2f} pick@5={diag['pick_top5_rate']:.2f} avgERrank={diag['avg_er_rank']:.1f} corr={diag['logit_er_corr']:.2f} H={diag['mean_entropy']:.2f}"
+                + f" bucket={bidx}"
             )
 
         # Collapse guard logic
@@ -1184,7 +1740,7 @@ def main():
         if args.log_csv:
             header = ["ep","n","m","dens","lam2","base","reward","steps","updated",
                       "loss","pol","val","q","ent","kl","clipfrac",
-                      "pick_top1","pick_top5","avg_er_rank","corr_logit_er","mean_entropy"]
+                      "pick_top1","pick_top5","avg_er_rank","corr_logit_er","mean_entropy","bucket"]
             if (ep % args.batch_episodes)==0:
                 # we just computed stats
                 log_row(args.log_csv, header, [
@@ -1192,46 +1748,28 @@ def main():
                     1, f"{stats['loss']:.6f}", f"{stats['pol']:.6f}", f"{stats['val']:.6f}", f"{stats['q']:.6f}",
                     f"{stats['ent']:.6f}", f"{stats['kl']:.6f}", f"{stats['clipfrac']:.6f}",
                     f"{diag['pick_top1_rate']:.6f}", f"{diag['pick_top5_rate']:.6f}",
-                    f"{diag['avg_er_rank']:.6f}", f"{diag['logit_er_corr']:.6f}", f"{diag['mean_entropy']:.6f}"
+                    f"{diag['avg_er_rank']:.6f}", f"{diag['logit_er_corr']:.6f}", f"{diag['mean_entropy']:.6f}",
+                    int(bidx)
                 ])
             else:
                 log_row(args.log_csv, header, [
                     ep, n, m, f"{dens:.6f}", f"{lam2:.6f}", f"{base_lam2:.6f}", f"{reward:.6f}", steps,
                     0, "", "", "", "", "", "",
                     f"{diag['pick_top1_rate']:.6f}", f"{diag['pick_top5_rate']:.6f}",
-                    f"{diag['avg_er_rank']:.6f}", f"{diag['logit_er_corr']:.6f}", f"{diag['mean_entropy']:.6f}"
+                    f"{diag['avg_er_rank']:.6f}", f"{diag['logit_er_corr']:.6f}", f"{diag['mean_entropy']:.6f}",
+                    int(bidx)
                 ])
 
         if args.save_every>0 and (ep % args.save_every)==0:
             path_ep = episodic_path(args.save_model, ep)
-            agent.save(path_ep, arch)
+            agent.save(path_ep, arch, prefer_ema=bool(getattr(args, 'save_ema_teacher', False)))
             print(f"[save] -> {path_ep}")
 
-    agent.save(args.save_model, arch)
+    agent.save(args.save_model, arch, prefer_ema=bool(getattr(args, 'save_ema_teacher', False)))
     print(f"[done] saved -> {args.save_model} | elapsed={time.time()-t0:.1f}s")
 
 if __name__ == '__main__':
     main()
-
-
-
-"""
-python v11.py --train \
-  --episodes 10000 \
-  --multi_task --n_min 16 --n_max 32 --dens_min 0.0 --dens_max 1.0 \
-  --init path --seed 0 \
-  --heuristic er --topk 8 --topk_frac 0.0 \
-  --train_temperature 0.8 \
-  --gat_hidden 128 --gat_heads 6 --gat_layers 6 \
-  --edge_mlp_hidden 256 --value_mlp_hidden 128 \
-  --lr 2e-4 --gamma 0.99 --lam 0.95 --clip 0.15 --ent_coef 0.03 --vf_coef 0.6 \
-  --ppo_epochs 3 --mb_size 2048 --batch_episodes 1 \
-  --threads 96 --device cpu \
-  --final_return_reward \
-  --reward_mode ratio --reward_eps 1e-6 \
-  --save_model runs/v11_n96_train.pt --save_every 10 
-"""
-
 
 
 
