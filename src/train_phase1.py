@@ -7,6 +7,7 @@ import math
 import argparse
 import random
 from typing import List, Tuple, Dict
+import time
 
 import numpy as np
 import torch
@@ -20,6 +21,8 @@ try:
 except Exception:
     _HAVE_SCIPY = False
 
+
+OPTIMIZE = True
 
 # -----------------------------
 # Graph utilities (standalone)
@@ -525,6 +528,7 @@ def train_phase1_rl(
     load_model: str = '',
 ):
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
+    t0 = time.time()
     pol = EdgePolicyNet(node_in=2, edge_in=11, global_in=5, hid=64, heads=6, layers=3, edge_hidden=384).to(device)
     val = ValueNet(global_in=5, hidden=128).to(device)
     opt = torch.optim.Adam(list(pol.parameters()) + list(val.parameters()), lr=3e-4)
@@ -786,8 +790,11 @@ def eval_on_enum(pol: EdgePolicyNet, n_min: int, n_max: int, data_dir: str, samp
         is_reg = np.allclose(deg, k, atol=1e-6) and is_connected_adj(env.adj)
         if is_reg:
             success += 1; regular_count += 1
-            A_imp, lam2_imp = _two_switch_improve_lambda2(env.adj.copy(), k, max_iters=50, tries_per_iter=50)
-            lam2_val = lam2_imp
+            if OPTIMIZE:
+                A_imp, lam2_imp = _two_switch_improve_lambda2(env.adj.copy(), k, max_iters=50, tries_per_iter=50)
+                lam2_val = lam2_imp
+            else:
+                lam2_val = lam2_smallest(laplacian_from_adj(env.adj), need_vec=False)
         else:
             lam2_val = lam2_smallest(laplacian_from_adj(env.adj), need_vec=False)
         lam2s.append(lam2_val)
@@ -808,6 +815,7 @@ def infer_regular(load_path: str, n: int, m: int, topk: int = 8, device: str = '
         print(f"[infer] (n={n}, m={m}) not regularizable: 2m % n != 0")
         return
     k = (2 * m) // n
+    t0 = time.time()
     pol = EdgePolicyNet(node_in=2, edge_in=11, global_in=5, hid=64, heads=6, layers=3, edge_hidden=384).to(device)
     obj = torch.load(load_path, map_location=device)
     pol.load_state_dict(obj['policy'] if 'policy' in obj else obj)
@@ -822,7 +830,7 @@ def infer_regular(load_path: str, n: int, m: int, topk: int = 8, device: str = '
             break
         # Lookahead near the end: pick candidate maximizing final λ2 after greedy regular completion
         edges_left = env.m - int(env.adj.sum() // 2)
-        if edges_left <= n:
+        if OPTIMIZE and edges_left <= n:
             best_idx = 0; best_lam2 = -1e9
             for ci in range(len(iu)):
                 u = int(iu[ci]); v = int(iv[ci])
@@ -843,10 +851,16 @@ def infer_regular(load_path: str, n: int, m: int, topk: int = 8, device: str = '
     deg = env.adj.sum(axis=1)
     is_reg = np.allclose(deg, k, atol=1e-6) and is_connected_adj(env.adj)
     lam2 = lam2_smallest(laplacian_from_adj(env.adj), need_vec=False)
-    print(f"[infer] n={n} m={m} k={k} regular={is_reg} lam2={lam2:.6f}")
-    for i in range(n):
-        nbrs = [str(j) for j in range(n) if env.adj[i, j] > 0.5]
-        print(f"{i}: "+', '.join(nbrs))
+    if OPTIMIZE and is_reg:
+        A_imp, lam2_imp = _two_switch_improve_lambda2(env.adj.copy(), k, max_iters=100, tries_per_iter=100)
+        if lam2_imp > lam2 + 1e-9:
+            env.adj = A_imp; lam2 = lam2_imp
+    runtime = time.time() - t0
+    print(f"[infer] n={n} m={m} k={k} regular={is_reg} lam2={lam2:.6f} runtime={runtime:.2f}s")
+    if not is_reg:
+        for i in range(n):
+            nbrs = [str(j) for j in range(n) if env.adj[i, j] > 0.5]
+            print(f"{i}: "+', '.join(nbrs))
 
 
 def _lam2_after_add_and_regular_fill(env: Phase1Env, u: int, v: int) -> float:
@@ -1029,4 +1043,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
