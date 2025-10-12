@@ -2,7 +2,7 @@
 
 # Compiler and flags
 CC = gcc
-CFLAGS = -O3 -g -Wall -I/opt/homebrew/Cellar/lapack/3.12.1/include
+CFLAGS = -O3 -g -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-but-set-variable -I/opt/homebrew/Cellar/lapack/3.12.1/include
 LDFLAGS = -L/opt/homebrew/Cellar/lapack/3.12.1/lib
 LIBS = -lm -llapacke -llapack -lblas
 
