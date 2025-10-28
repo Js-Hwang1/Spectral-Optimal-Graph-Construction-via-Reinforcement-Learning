@@ -10,6 +10,13 @@ data/data_ENUM/*
 data/data_ERG/*
 data/data_FVG/*
 
+test_b1.dsYM/
+test_b2.dsYM/
+test_c1.dsYM/
+test_c2.dsYM/
+data_ERG_c/
+data_SW_c.
+
 output4/
 models/
 logs/

@@ -10,6 +10,10 @@
  *   and ensures graph properties are correctly verified.
  */
 
+/**
+ * Convenience function for getting just the lambda2 value.tly verified.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "eigenvalue.h"
@@ -375,16 +379,6 @@ cleanup_and_fail:
 
 
 
-
-/**
- * Branch C1: Odd n, k < (n+1)/2
- * TODO: Implement C1 branch
- */
-void c1_branch_main(int n, int k, int **adj_matrix) {
-    printf("C1 Branch: Odd n=%d, k=%d < ceil(n/2)\n", n, k);
-    fprintf(stderr, "Error: C1 branch not yet implemented\n");
-    exit(1);
-}
 
 /**
  * Convenience function for getting just the lambda2 value.

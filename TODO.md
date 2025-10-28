@@ -1,6 +1,7 @@
-# parse.py: Update it such that it will show which episode had the best peformance, and also list out the top 5 episodes. (DONE)
-# Make a file such trhat it will plot the peformance (lambda2) over time (episode) -> Review oscilation per density.  (DONE)
-# Anneal hyperparameters for training.  (DONE)
+1. Does superior where k = n/2
+2. Lambda2 falls after that superior case. (Possible to add edges to the superior structure to maintain the gap?)
+3. Since k=n/2 only occurs when n is even 
 
-# Tried to do curriculum training -> Did not work (Did not fully generalize as I anticipated.)
-# What I want is a more 
+1. On odd n; we loose from k = 3 to k = floor(n/2) for all odd n and begin to win just a little bit after ceil(n/2); We should address this behavior of the lower k behavior of odd n.
+
+1. Add edges to strong graph families (k=3 mobius); and create a monotone lambda2 increase overall

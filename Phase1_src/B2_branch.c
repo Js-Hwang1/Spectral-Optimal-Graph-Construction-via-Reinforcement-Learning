@@ -35,68 +35,10 @@ static void build_npartite_b2_graph(int n, int k, int num_groups, int **adj_matr
 
 
 /* ========================================================================
- * SYSTEMATIC DEGREE ENHANCEMENT FROM SPECIAL BIPARTITE BASE
+ * SYSTEMATIC DEGREE ENHANCEMENT FROM SPECIAL N-PARTITE BASE
  * ======================================================================== */
 
-/**
- * Systematically enhance degrees from bipartite base for even n graphs.
- * This function takes a bipartite foundation and adds systematic
- * intra-group connections to reach higher target degrees.
- * 
- * @param n Number of vertices (must be even)
- * @param k_base Base degree from bipartite case 
- * @param k_target Target degree to reach
- * @param adj_matrix Input/Output: adjacency matrix with bipartite base
- */
 
-static void enhance_degrees_systematically_b2(int n, int k_base, int k_target, int **adj_matrix) {
-    if(k_target <= k_base) return;  // Nothing to enhance
-    
-    int *degrees = (int*)calloc(n, sizeof(int));
-    
-    // Count current degrees
-    for(int i = 0; i < n; i++) {
-        for(int j = 0; j < n; j++) {
-            if(adj_matrix[i][j]) degrees[i]++;
-        }
-    }
-    
-    // Use round-robin approach to systematically add edges
-    int max_chord_length = (n + 1) / 2;
-    
-    // Keep adding edges until all nodes reach target degree
-    for(int round = k_base; round < k_target; round++) {
-        for(int i = 0; i < n; i++) {
-            if(degrees[i] >= k_target) continue;
-            
-            // Try to find a valid partner for node i
-            for(int cl = 1; cl < max_chord_length; cl++) {
-                int j_pos = (i + cl) % n;
-                int j_neg = (i + n - cl) % n;
-                
-                // Try positive direction first
-                if(j_pos != i && !adj_matrix[i][j_pos] && degrees[j_pos] < k_target) {
-                    adj_matrix[i][j_pos] = 1;
-                    adj_matrix[j_pos][i] = 1;
-                    degrees[i]++;
-                    degrees[j_pos]++;
-                    break;
-                }
-                
-                // Try negative direction if positive didn't work
-                if(j_neg != i && j_neg != j_pos && !adj_matrix[i][j_neg] && degrees[j_neg] < k_target) {
-                    adj_matrix[i][j_neg] = 1;
-                    adj_matrix[j_neg][i] = 1;
-                    degrees[i]++;
-                    degrees[j_neg]++;
-                    break;
-                }
-            }
-        }
-    }
-    
-    free(degrees);
-}
 
 /**
  * N-partite approach using generalized Special_Builder foundation + chord enhancement.

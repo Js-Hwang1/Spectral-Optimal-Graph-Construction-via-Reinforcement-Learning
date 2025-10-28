@@ -124,3 +124,114 @@ int validate_lambda2(double lambda2, int n, int k) {
     
     return 1;  /* Passes basic validation */
 }
+
+/* ========================================================================
+ * FIEDLER VECTOR COMPUTATION
+ * ======================================================================== */
+
+/**
+ * Compute the Fiedler vector (second smallest eigenvector) of the graph Laplacian.
+ * Builds L = D - A, runs symmetric eigensolver with eigenvectors, then returns
+ * the first eigenvector with strictly positive eigenvalue as the Fiedler vector.
+ *
+ * @param n Number of vertices
+ * @param adj_matrix n x n adjacency (0/1)
+ * @param out_vec Output array of size n
+ * @return 1 on success, 0 on failure
+ */
+int compute_fiedler_vector(int n, int **adj_matrix, double *out_vec) {
+    if (n <= 1 || !adj_matrix || !out_vec) return 0;
+
+    double *laplacian = (double*)malloc(n * n * sizeof(double));
+    double *eigenvalues = (double*)malloc(n * sizeof(double));
+    if (!laplacian || !eigenvalues) {
+        free(laplacian);
+        free(eigenvalues);
+        return 0;
+    }
+
+    // Build Laplacian L = D - A
+    for (int i = 0; i < n; i++) {
+        double degree = 0.0;
+        for (int j = 0; j < n; j++) {
+            if (i != j && adj_matrix[i][j]) {
+                degree += 1.0;
+                laplacian[i * n + j] = -1.0;
+            } else if (i != j) {
+                laplacian[i * n + j] = 0.0;
+            }
+        }
+        laplacian[i * n + i] = degree;
+    }
+
+    // Solve for all eigenpairs (symmetric)
+    int info = LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', n, laplacian, n, eigenvalues);
+    if (info != 0) {
+        free(laplacian);
+        free(eigenvalues);
+        return 0;
+    }
+
+    // Find index of first strictly positive eigenvalue (skip near-zero λ0)
+    int fiedler_idx = -1;
+    for (int i = 0; i < n; i++) {
+        if (eigenvalues[i] > 1e-10) { fiedler_idx = i; break; }
+    }
+    if (fiedler_idx < 0) {
+        free(laplacian);
+        free(eigenvalues);
+        return 0; // Graph likely disconnected or degenerate
+    }
+
+    // Extract the corresponding eigenvector (column fiedler_idx)
+    for (int r = 0; r < n; r++) {
+        out_vec[r] = laplacian[r * n + fiedler_idx];
+    }
+
+    free(laplacian);
+    free(eigenvalues);
+    return 1;
+}
+
+/**
+ * Compute the first r positive Laplacian eigenpairs.
+ * See header for details.
+ */
+int compute_low_k_eigenpairs(int n, int **adj_matrix, int r, double *eigvals_out, double *eigvecs_out) {
+    if (n <= 1 || !adj_matrix || !eigvals_out || !eigvecs_out || r <= 0) return 0;
+
+    double *L = (double*)malloc(n * n * sizeof(double));
+    double *evals = (double*)malloc(n * sizeof(double));
+    if (!L || !evals) {
+        free(L); free(evals);
+        return 0;
+    }
+
+    for (int i = 0; i < n; i++) {
+        double deg = 0.0;
+        for (int j = 0; j < n; j++) {
+            if (i != j && adj_matrix[i][j]) { deg += 1.0; L[i*n + j] = -1.0; }
+            else if (i != j) { L[i*n + j] = 0.0; }
+        }
+        L[i*n + i] = deg;
+    }
+
+    int info = LAPACKE_dsyev(LAPACK_ROW_MAJOR, 'V', 'U', n, L, n, evals);
+    if (info != 0) { free(L); free(evals); return 0; }
+
+    int found = 0;
+    for (int i = 0; i < n && found < r; i++) {
+        if (evals[i] > 1e-10) {
+            eigvals_out[found] = evals[i];
+            // extract ith eigenvector (column i)
+            for (int v = 0; v < n; v++) {
+                eigvecs_out[found * n + v] = L[v*n + i];
+            }
+            found++;
+        }
+    }
+
+    free(L);
+    free(evals);
+    return found;
+}
