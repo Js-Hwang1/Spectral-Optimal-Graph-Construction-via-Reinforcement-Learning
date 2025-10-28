@@ -181,45 +181,41 @@ static void test_b2_single(int n, int k) {
     printf("\n");
 }
 
-static void test_b2_comprehensive(int *n_values, int num_n_values) {
-    printf("\n=== B2 Branch Comprehensive Testing ===\n");
-    printf("Testing even n values with k >= n/2\n\n");
+static void test_b2_comprehensive(int *test_n_values, int num_n) {
+    printf(" (n,k) |  Alg1's λ₂  | Baseline λ₂  |  Difference \n");
+    printf("=======|============|==============|=============\n");
     
-    // Print header with proper alignment
-    printf(" (n,k) | Algorithm1 |   Baseline |      Diff |    Improv | Timing\n");
-    printf("-------|------------|------------|-----------|----------|------------------\n");
-    
-    for (int i = 0; i < num_n_values; i++) {
-        int n = n_values[i];
+    for (int i = 0; i < num_n; i++) {
+        int n = test_n_values[i];
         
         // Skip odd n (B2 is for even n only)
         if (n % 2 == 1) {
-            printf("Skipping odd n=%d (B2 is for even n only)\n", n);
             continue;
         }
         
-        // Test k values from n/2 to n-1 (B2 branch range)
-        int min_k = n / 2;        // B2 branch minimum: k >= n/2
-        int max_k = n - 1;        // Maximum possible degree for simple graphs
+        // Test all relevant k values for B2 branch
+        int min_k = (n  / 2);  // Minimum k for B2 branch
+        int max_k = n - 1;        // Maximum possible k (complete graph)
         
-        for (int k = min_k; k <= max_k; k++) {
-            // Only test even k values to ensure n*k is even
-            if (k % 2 == 0) {
-                test_b2_single(n, k);
-            }
+        // Ensure min_k is even (since k must be even for odd n)
+        if (min_k % 2 != 0) {
+            min_k += 1;  // Round up to next even number
         }
         
-        // Add separator line between different n values
-        if (i < num_n_values - 1) {
-            printf("-------|------------|------------|-----------|----------|------------------\n");
+        // Ensure max_k is even (since k must be even for odd n)
+        if (max_k % 2 != 0) {
+            max_k -= 1;
+        }
+        
+        // Ensure max_k is at least min_k
+        if (max_k < min_k) {
+            max_k = min_k;
+        }
+        
+        for (int k = min_k; k <= max_k; k += 2) {  // k must be even for odd n
+            test_b2_single(n, k);
         }
     }
-    
-    printf("\nLegend:\n");
-    printf("  ✓ = Algorithm1 outperforms baseline by ≥0.1%%\n");  
-    printf("  ✗ = Algorithm1 underperforms baseline by ≥0.1%%\n");
-    printf("  Diff = Algorithm1 λ₂ - Baseline λ₂\n");
-    printf("  Improv = Performance improvement percentage\n");
 }
 
 /* ========================================================================
