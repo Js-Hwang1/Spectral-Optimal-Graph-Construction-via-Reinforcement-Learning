@@ -16,16 +16,16 @@ SOURCES_B1 = tests/Test_B1.c Phase1_src/Algorithm1.c Phase1_src/Special_Builder.
 all: test_c2 test_c1 test_b2 test_b1
 
 test_c2: $(SOURCES_C2)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o test_c2 $(SOURCES_C2) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/test_c2 $(SOURCES_C2) $(LIBS)
 
 test_c1: $(SOURCES_C1)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o test_c1 $(SOURCES_C1) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/test_c1 $(SOURCES_C1) $(LIBS)
 
 test_b2: $(SOURCES_B2)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o test_b2 $(SOURCES_B2) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/test_b2 $(SOURCES_B2) $(LIBS)
 
 test_b1: $(SOURCES_B1)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o test_b1 $(SOURCES_B1) $(LIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o bin/test_b1 $(SOURCES_B1) $(LIBS)
 
 clean:
 	rm -f test_c2 test_c1 test_b2 test_b1 test_c2_real
