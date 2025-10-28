@@ -1,14 +1,14 @@
-.DS_Store
-bin/
-.vscode/
-References/
-TODO.md
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
 *$py.class
 *.sh
+
+.DS_Store
+bin/
+.vscode/
+References/
+TODO.md
 
 # C extensions
 *.so
