@@ -27,9 +27,9 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
-#include "Special_Builder.h"
-#include "eigenvalue.h"
-#include "Algorithm1.h"
+#include "../include/Special_Builder.h"
+#include "../include/eigenvalue.h"
+#include "../include/Algorithm1.h"
 
 // Forward declarations
 static void build_circulant_ring_plus_steps(int n, int k, int **adj_matrix);

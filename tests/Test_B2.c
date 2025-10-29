@@ -15,7 +15,7 @@
 // #include <lapacke.h>
 
 // Include our modules
-#include "../Phase1_src/Algorithm1.h"
+#include "Algorithm1.h"
 // #include "../Phase1_src/eigenvalue.h"
 
 // Quiet version of algorithm1_main that suppresses ALL output

@@ -5,3 +5,23 @@
 1. On odd n; we loose from k = 3 to k = floor(n/2) for all odd n and begin to win just a little bit after ceil(n/2); We should address this behavior of the lower k behavior of odd n.
 
 1. Add edges to strong graph families (k=3 mobius); and create a monotone lambda2 increase overall
+
+
+
+__________________
+
+1. Change Print statements so that it is equal in all tests (b1 b2 c1 c2)
+2. Double check linking the baseline codes!!!!! (Currently "FAILS").
+3. Separate headers into include/
+
+_________________
+
+Think fo the converse problem:
+For Dense regime the complete-multipartie works really well (Has very high, near optimal algebraic connectivity). But why isn't there a special case for sparse case? 
+
+Sparse: 
+- Circulant is really bad...
+- The compliemnt of the multipartite is really bad (as expected)
+
+Try: 
+- Take out the "super bad dense graph from complete", like Make dense circulant and take that out.?.

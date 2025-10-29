@@ -15,7 +15,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../Phase1_src/Algorithm1.h"
+#include "Algorithm1.h"
 
 // Include the Algorithm1 and Supporting functions
 double algorithm1_get_lambda2_quiet(int n, int k);

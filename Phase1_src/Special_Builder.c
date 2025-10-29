@@ -18,7 +18,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
-#include "eigenvalue.h"
+#include "../include/eigenvalue.h"
 
 /* Special_Builder.c — Special Graph Construction Cases
  *

@@ -25,9 +25,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "Special_Builder.h"
-#include "eigenvalue.h"
-#include "Algorithm1.h"
+#include "../include/Special_Builder.h"
+#include "../include/eigenvalue.h"
+#include "../include/Algorithm1.h"
 
 // Forward declarations
 static void build_hybrid_c2_graph(int n, int k, int **adj_matrix);

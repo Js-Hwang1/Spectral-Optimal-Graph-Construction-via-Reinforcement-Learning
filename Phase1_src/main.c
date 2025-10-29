@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "Algorithm1.h"
+#include "../include/Algorithm1.h"
 
 int main(int argc, char **argv) {
     printf("Phase1 Algorithm Demo - Testing A Branch\n");

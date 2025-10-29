@@ -16,12 +16,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "eigenvalue.h"
-#include "Special_Builder.h"
-#include "A_branch.h"
-#include "B1_branch.h"
-#include "B2_branch.h"
-#include "C2_branch.h"
+#include "../include/eigenvalue.h"
+#include "../include/Special_Builder.h"
+#include "../include/A_branch.h"
+#include "../include/B1_branch.h"
+#include "../include/B2_branch.h"
+#include "../include/C2_branch.h"
 
 
 /* Forward declarations for other branches (to be implemented) */
