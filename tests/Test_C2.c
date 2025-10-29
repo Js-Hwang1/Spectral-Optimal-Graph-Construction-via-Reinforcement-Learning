@@ -1,17 +1,3 @@
-/* Test_C2.c — Canonical C2 test harness
- *
- * Single clean implementation: calls algorithm1_main, runs ERG baseline
- * executable (built by Makefile), parses baseline output, prints table.
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
-#include <unistd.h>
-
-#include "Algorithm1.h"
 /*
  * tests/Test_C2.c
  *
