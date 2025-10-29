@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     'baselines/baseline_effective_resistance'
+relocations:     []
+...

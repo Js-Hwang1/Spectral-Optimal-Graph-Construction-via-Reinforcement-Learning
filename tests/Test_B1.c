@@ -80,7 +80,7 @@ static double run_erg_baseline(int n, int target_edges) {
     
     // Read result file and find the lambda2 for target_edges
     char result_file[512];
-    snprintf(result_file, sizeof(result_file), "%s/n%d_ERG_data", temp_dir, n);  // No .txt extension
+    snprintf(result_file, sizeof(result_file), "%s/n%d_ERG_data.txt", temp_dir, n);
     
     FILE *fp = fopen(result_file, "r");
     if (!fp) {
@@ -194,7 +194,7 @@ static void test_b1_comprehensive(int n) {
     printf("\n=== B1 Branch Comprehensive Testing ===\n");
     printf("Testing even n values with 3 ≤ k < n/2\n\n");
     printf(" (n,k) | Algorithm1 |   Baseline |      Diff |    Improv | Timing\n");
-    printf("-------|------------|------------|-----------|----------|------------------\n");
+    printf("-------|------------|------------|-----------|-----------|------------------\n");
     
     // Test all valid k values for B1 branch: 3 ≤ k < n/2
     int max_k = n / 2 - 1;  // B1 handles k < n/2

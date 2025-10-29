@@ -80,7 +80,7 @@ static double run_erg_baseline(int n, int target_edges) {
     
     // Read result file and find the lambda2 for target_edges
     char result_file[512];
-    snprintf(result_file, sizeof(result_file), "%s/n%d_ERG_data", temp_dir, n);  // No .txt extension
+    snprintf(result_file, sizeof(result_file), "%s/n%d_ERG_data.txt", temp_dir, n);
     
     FILE *fp = fopen(result_file, "r");
     if (!fp) {

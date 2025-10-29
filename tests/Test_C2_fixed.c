@@ -1,25 +1,8 @@
-/* Test_C2.c — Canonical C2 test harness
+/* Test_C2_fixed.c — Clean, single-definition C2 test harness (fixed)
  *
- * Single clean implementation: calls algorithm1_main, runs ERG baseline
- * executable (built by Makefile), parses baseline output, prints table.
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
-#include <unistd.h>
-
-#include "Algorithm1.h"
-/*
- * tests/Test_C2.c
- *
- * Canonical, single-definition C2 test harness for the project.
- * Calls algorithm1_main (quietly), runs the ERG baseline executable
- * (built by the Makefile at ./baselines/baseline_effective_resistance),
- * parses its per-n output file, and prints a standardized comparison
- * table.
+ * Same behavior as the previous Test_C2.c but placed in a new file to avoid
+ * corruption in the original. This file calls algorithm1_main, runs the ERG
+ * baseline executable, and prints a standardized comparison table.
  */
 
 #include <stdio.h>
@@ -31,30 +14,25 @@
 
 #include "Algorithm1.h"
 
-/* Call algorithm1_main but suppress its stdout by redirecting to /dev/null. */
 static double get_lambda2_quiet(int n, int k) {
     double lambda2 = -1.0;
     FILE *saved = stdout;
-    FILE *nullf = fopen("/dev/null", "w");
-    if (!nullf) return -1.0;
-    stdout = nullf;
+    FILE *f = fopen("/dev/null", "w");
+    if (!f) return -1.0;
+    stdout = f;
     int rc = algorithm1_main(n, k, &lambda2);
-    fclose(nullf);
+    fclose(f);
     stdout = saved;
     if (rc == 0 || lambda2 < 0) return -1.0;
     return lambda2;
 }
 
-/* Run the ERG baseline executable for a single n and parse the produced
- * n%d_ERG_data.txt file. Return the best lambda2 for the requested
- * target number of edges, or 0.0 on failure. */
 static double run_erg_baseline(int n, int target_edges) {
     char tmpdir[] = "/tmp/erg_test_XXXXXX";
     if (mkdtemp(tmpdir) == NULL) return 0.0;
-
     char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "./baselines/baseline_effective_resistance --n-min %d --n-max %d --out-dir %s > /dev/null 2>&1",
-             n, n, tmpdir);
+    snprintf(cmd, sizeof(cmd), "%s/baselines/baseline_effective_resistance --n-min %d --n-max %d --out-dir %s > /dev/null 2>&1",
+             "/Users/j/Desktop/Projects/Spectral-Optimal-Graph-Construction-via-Reinforcement-Learning", n, n, tmpdir);
     if (system(cmd) != 0) { snprintf(cmd, sizeof(cmd), "rm -rf %s", tmpdir); system(cmd); return 0.0; }
 
     char path[512];
@@ -74,7 +52,6 @@ static double run_erg_baseline(int n, int target_edges) {
                     if (cm <= target_edges && lam > best) best = lam;
                 }
             }
-            /* skip graph6 and blank lines */
             fgets(line, sizeof(line), fp);
             fgets(line, sizeof(line), fp);
         }
@@ -90,8 +67,7 @@ static void print_header(void) {
 }
 
 static void test_single(int n, int k) {
-    if ((n * k) % 2 != 0) return; /* invalid simple graph */
-
+    if ((n * k) % 2 != 0) return;
     clock_t s = clock();
     double a = get_lambda2_quiet(n, k);
     clock_t e = clock();
@@ -123,7 +99,7 @@ static void test_comprehensive(int *ns, int cnt) {
     print_header();
     for (int i=0;i<cnt;++i) {
         int n = ns[i];
-        if (n % 2 == 0) continue; /* C2 is for odd n */
+        if (n % 2 == 0) continue;
         int lo = (n+1)/2, hi = n-1;
         if (lo % 2 != 0) ++lo; if (hi % 2 != 0) --hi; if (hi < lo) hi = lo;
         for (int k = lo; k <= hi; k += 2) test_single(n,k);

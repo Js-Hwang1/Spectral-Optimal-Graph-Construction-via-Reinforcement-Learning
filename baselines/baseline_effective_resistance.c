@@ -1,7 +1,21 @@
 #include <errno.h>
 #include <lapacke.h>
 #include <math.h>
-#include <omp.h>
+/* OpenMP is optional. If omp.h is not available (macOS without libomp),
+ * provide minimal fallbacks so the code can compile and run single-threaded.
+ */
+#if defined(__has_include)
+# if __has_include(<omp.h>)
+#  include <omp.h>
+# else
+#  define omp_get_max_threads() 1
+#  define omp_get_thread_num() 0
+#  /* no-op stub when OpenMP is not available */
+#  define omp_set_num_threads(x) ((void)0)
+# endif
+#else
+# include <omp.h>
+#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
