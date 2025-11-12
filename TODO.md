@@ -8,11 +8,6 @@
 
 
 
-__________________
-
-1. Change Print statements so that it is equal in all tests (b1 b2 c1 c2)
-2. Double check linking the baseline codes!!!!! (Currently "FAILS").
-3. Separate headers into include/
 
 _________________
 
@@ -25,3 +20,8 @@ Sparse:
 
 Try: 
 - Take out the "super bad dense graph from complete", like Make dense circulant and take that out.?.
+
+    test_cases = []
+    for n in range(8,33):
+        for k in range(3,n//2):
+            test_cases.append( (n,k) )

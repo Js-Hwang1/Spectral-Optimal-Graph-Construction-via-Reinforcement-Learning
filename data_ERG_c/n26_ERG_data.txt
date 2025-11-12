@@ -1,0 +1,1200 @@
+(26,25)
+lambda2: 0.014582251804
+graph6: Yo???G???G???O???O??O??C????GA??C??O?A??_?O?O?_A?ACA?SO_
+
+(26,26)
+lambda2: 0.058116365148
+graph6: Yo???G???G???O???O??O??C????GA??C??O?A??_?O?O?_A?ACA?SP_
+
+(26,27)
+lambda2: 0.058116365148
+graph6: Yo???G???G???O???O?AO??C????GA??C??O?A??_?O?O?_A?ACA?SP_
+
+(26,28)
+lambda2: 0.156269098272
+graph6: Yo???G???G???O???O?AO??C???CGA??C??O?A??_?O?O?_A?ACA?SP_
+
+(26,29)
+lambda2: 0.200673653157
+graph6: Yo???G???G???O?O?O?AO??C???CGA??C??O?A??_?O?O?_A?ACA?SP_
+
+(26,30)
+lambda2: 0.225613232311
+graph6: Yo???G???G???O?O?O?AO??C???CGA??C??OAA??_?O?O?_A?ACA?SP_
+
+(26,31)
+lambda2: 0.227831050602
+graph6: Yo@??G???G???O?O?O?AO??C???CGA??C??OAA??_?O?O?_A?ACA?SP_
+
+(26,32)
+lambda2: 0.320353287257
+graph6: Yo@??G???G???O?O?O?AO??C???CGA??CG?OAA??_?O?O?_A?ACA?SP_
+
+(26,33)
+lambda2: 0.343091940638
+graph6: Yo@??G???G???O?O?O?AO??C??CCGA??CG?OAA??_?O?O?_A?ACA?SP_
+
+(26,34)
+lambda2: 0.472206737617
+graph6: Yo@??G???G???O?O?O?AO??C??CCGA??CG?OAA??_?O?O?_A?ACB?SP_
+
+(26,35)
+lambda2: 0.499478762831
+graph6: Yo@??G???G?A?O?O?O?AO??C??CCGA??CG?OAA??_?O?O?_A?ACB?SP_
+
+(26,36)
+lambda2: 0.540323267075
+graph6: Yo@??G???G?A?O?O?O?AO??C??CCGA??CG?OAA??_?O?OG_A?ACB?SP_
+
+(26,37)
+lambda2: 0.612834290557
+graph6: Yo@??G???G?A?O?O?O?AS??C??CCGA??CG?OAA??_?O?OG_A?ACB?SP_
+
+(26,38)
+lambda2: 0.642942981165
+graph6: Yo@??G??@G?A?O?O?O?AS??C??CCGA??CG?OAA??_?O?OG_A?ACB?SP_
+
+(26,39)
+lambda2: 0.705610137997
+graph6: Yo@??G??@G?A?O?O?O?AS??C??CCGA??CG?OAAG?_?O?OG_A?ACB?SP_
+
+(26,40)
+lambda2: 0.876717250435
+graph6: Yo@??G??@G?A?O?O?O?AS??C??CCGA??CG?OAAG?_?O?OG_A?aCB?SP_
+
+(26,41)
+lambda2: 0.898938371506
+graph6: Yo@??G?O@G?A?O?O?O?AS??C??CCGA??CG?OAAG?_?O?OG_A?aCB?SP_
+
+(26,42)
+lambda2: 0.946358657529
+graph6: Yo@??G?O@G?A?O?O?O?AS??C??CCGA??CH?OAAG?_?O?OG_A?aCB?SP_
+
+(26,43)
+lambda2: 0.950147914190
+graph6: Yo@??G?O@G?A?O?O?O?AS??C??CCGA??CH?OAAG?_GO?OG_A?aCB?SP_
+
+(26,44)
+lambda2: 1.056750422898
+graph6: Yo@??G?O@G?A?O?O?O?AS?CC??CCGA??CH?OAAG?_GO?OG_A?aCB?SP_
+
+(26,45)
+lambda2: 1.162173068702
+graph6: Yo@??G?O@G?A?O?O?Q?AS?CC??CCGA??CH?OAAG?_GO?OG_A?aCB?SP_
+
+(26,46)
+lambda2: 1.167747168988
+graph6: Yo@??G?O@G?A?O?O?Q?AS?CC??CCWA??CH?OAAG?_GO?OG_A?aCB?SP_
+
+(26,47)
+lambda2: 1.238808651833
+graph6: Yo@??G?O@G?A?O?O?Q?AS?CC??CCWA??CH?OAaG?_GO?OG_A?aCB?SP_
+
+(26,48)
+lambda2: 1.305111999376
+graph6: Yp@??G?O@G?A?O?O?Q?AS?CC??CCWA??CH?OAaG?_GO?OG_A?aCB?SP_
+
+(26,49)
+lambda2: 1.336326566076
+graph6: Yp@??G?O@G?A?O?O?Q?AS?CC??CCWAG?CH?OAaG?_GO?OG_A?aCB?SP_
+
+(26,50)
+lambda2: 1.403436187889
+graph6: Yp@??G?O@G?A?O?OOQ?AS?CC??CCWAG?CH?OAaG?_GO?OG_A?aCB?SP_
+
+(26,51)
+lambda2: 1.481444261214
+graph6: Yp@??G?O@G?AAO?OOQ?AS?CC??CCWAG?CH?OAaG?_GO?OG_A?aCB?SP_
+
+(26,52)
+lambda2: 1.497750754546
+graph6: Yp@??G?O@G?AAO?OOQ?AS?CC??CCWAG?CH?OAaG?_GO?OGcA?aCB?SP_
+
+(26,53)
+lambda2: 1.624415285422
+graph6: Yp@??GGO@G?AAO?OOQ?AS?CC??CCWAG?CH?OAaG?_GO?OGcA?aCB?SP_
+
+(26,54)
+lambda2: 1.726873237338
+graph6: Yp@??GGO@G?AAO?OOQ?AS?CC??cCWAG?CH?OAaG?_GO?OGcA?aCB?SP_
+
+(26,55)
+lambda2: 1.787266684855
+graph6: Yp@??GGO@G?AAO?OOQ?AS?CC??cCWAG?CH?OAaG?_GO?OGcA?aCBOSP_
+
+(26,56)
+lambda2: 1.860222974850
+graph6: Yp@??GGO@G?EAO?OOQ?AS?CC??cCWAG?CH?OAaG?_GO?OGcA?aCBOSP_
+
+(26,57)
+lambda2: 1.995429468018
+graph6: Yp@??GGO@G?EAO?OOQ?AS?CC??cCWAG?CH?OAaG?_GOOOGcA?aCBOSP_
+
+(26,58)
+lambda2: 2.069092135786
+graph6: Yp@??GGO@G?EAO?OOQ?AS_CC??cCWAG?CH?OAaG?_GOOOGcA?aCBOSP_
+
+(26,59)
+lambda2: 2.104441873301
+graph6: Yp@G?GGO@G?EAO?OOQ?AS_CC??cCWAG?CH?OAaG?_GOOOGcA?aCBOSP_
+
+(26,60)
+lambda2: 2.180923812236
+graph6: Yp@G?GGO@G?EAO?OOQ?AS_CC??cCWAG?KH?OAaG?_GOOOGcA?aCBOSP_
+
+(26,61)
+lambda2: 2.216436973796
+graph6: Yp@G?GGO@G?EAO?OOQ?AS_CC??cCWAG?KH?OAaG?_GOOOGcA?aCBOTP_
+
+(26,62)
+lambda2: 2.253340193766
+graph6: Yp@G?GGO@G?EAO?OOQOAS_CC??cCWAG?KH?OAaG?_GOOOGcA?aCBOTP_
+
+(26,63)
+lambda2: 2.397512980156
+graph6: Yp@G?GGO@G?EAO?OOQOAS_CC??ccWAG?KH?OAaG?_GOOOGcA?aCBOTP_
+
+(26,64)
+lambda2: 2.450006997060
+graph6: Yp@G?GGO@G?EAO?OOQOAS_CC??ccWAG?KH?OAaG?`GOOOGcA?aCBOTP_
+
+(26,65)
+lambda2: 2.459591633690
+graph6: Yp@G?GGO@G?EAO?oOQOAS_CC??ccWAG?KH?OAaG?`GOOOGcA?aCBOTP_
+
+(26,66)
+lambda2: 2.570233602993
+graph6: Yp@G?GGO@G?EAO?wOQOAS_CC??ccWAG?KH?OAaG?`GOOOGcA?aCBOTP_
+
+(26,67)
+lambda2: 2.650122839817
+graph6: Yp@G?GGO@G?EAO?wOQOAS_CC??ccWAGAKH?OAaG?`GOOOGcA?aCBOTP_
+
+(26,68)
+lambda2: 2.677793957657
+graph6: Yp@G?GGO@G?EAO?wOQOAS_CC??ccWAGAKH?OAaG?`GSOOGcA?aCBOTP_
+
+(26,69)
+lambda2: 2.749317516037
+graph6: Yp@G?GGO@GGEAO?wOQOAS_CC??ccWAGAKH?OAaG?`GSOOGcA?aCBOTP_
+
+(26,70)
+lambda2: 2.801704584846
+graph6: Yp@GAGGO@GGEAO?wOQOAS_CC??ccWAGAKH?OAaG?`GSOOGcA?aCBOTP_
+
+(26,71)
+lambda2: 2.965553601569
+graph6: Yp@GAGGO@GGEAO?wOQOASaCC??ccWAGAKH?OAaG?`GSOOGcA?aCBOTP_
+
+(26,72)
+lambda2: 3.101326297533
+graph6: Yp@GAGGO@GGEAO?wOQOASaCC??ccWAGAKH?OAaG?`GSOSGcA?aCBOTP_
+
+(26,73)
+lambda2: 3.114810281875
+graph6: Yp@GAGIO@GGEAO?wOQOASaCC??ccWAGAKH?OAaG?`GSOSGcA?aCBOTP_
+
+(26,74)
+lambda2: 3.124699756343
+graph6: Yp@GAGIO@GGEAO?wOQOASaCC??ccWIGAKH?OAaG?`GSOSGcA?aCBOTP_
+
+(26,75)
+lambda2: 3.261871267801
+graph6: Yp@GAGIO@GGEAO?wOQOASaCD??ccWIGAKH?OAaG?`GSOSGcA?aCBOTP_
+
+(26,76)
+lambda2: 3.397953080864
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWIGAKH?OAaG?`GSOSGcA?aCBOTP_
+
+(26,77)
+lambda2: 3.496224512220
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWIGAKH?OAaG?`GsOSGcA?aCBOTP_
+
+(26,78)
+lambda2: 3.499480400162
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWIGAKH?OAaG?`GsOSGcA?aCBoTP_
+
+(26,79)
+lambda2: 3.575129433295
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWIGAKH?OAaG?`GsOSGcACaCBoTP_
+
+(26,80)
+lambda2: 3.671467054913
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWYGAKH?OAaG?`GsOSGcACaCBoTP_
+
+(26,81)
+lambda2: 3.736930795759
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWYGAKH?OAaG?`GsOSGcICaCBoTP_
+
+(26,82)
+lambda2: 3.743280917678
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWYGAKH?OAaH?`GsOSGcICaCBoTP_
+
+(26,83)
+lambda2: 3.743286492973
+graph6: Yp@GAGIO@GGEAO?wOQOQSaCD??ccWYGAKJ?OAaH?`GsOSGcICaCBoTP_
+
+(26,84)
+lambda2: 3.827030010146
+graph6: Yp@GQGIO@GGEAO?wOQOQSaCD??ccWYGAKJ?OAaH?`GsOSGcICaCBoTP_
+
+(26,85)
+lambda2: 3.895575031485
+graph6: Yp@GQGIO@KGEAO?wOQOQSaCD??ccWYGAKJ?OAaH?`GsOSGcICaCBoTP_
+
+(26,86)
+lambda2: 3.945771918365
+graph6: Yp@GQGIO@KGEAO?wOQOQSaCD??ccWYGAKJ?OAaH?`GsOSHcICaCBoTP_
+
+(26,87)
+lambda2: 3.952499877490
+graph6: Yp@GQGIO@KGEAO_wOQOQSaCD??ccWYGAKJ?OAaH?`GsOSHcICaCBoTP_
+
+(26,88)
+lambda2: 3.971220460755
+graph6: Yp@GQGIO@KGEAO_wPQOQSaCD??ccWYGAKJ?OAaH?`GsOSHcICaCBoTP_
+
+(26,89)
+lambda2: 4.088118769932
+graph6: Yp@GQGIO@KGEAO_wPQOQSaCD??ccWYGQKJ?OAaH?`GsOSHcICaCBoTP_
+
+(26,90)
+lambda2: 4.261288625005
+graph6: Yp@GQGIOHKGEAO_wPQOQSaCD??ccWYGQKJ?OAaH?`GsOSHcICaCBoTP_
+
+(26,91)
+lambda2: 4.516143282119
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD??ccWYGQKJ?OAaH?`GsOSHcICaCBoTP_
+
+(26,92)
+lambda2: 4.562533175928
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD??ccWYGQKJ?WAaH?`GsOSHcICaCBoTP_
+
+(26,93)
+lambda2: 4.619416176531
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD??ccWYGQKJ?WAaH?`GsOSHcICeCBoTP_
+
+(26,94)
+lambda2: 4.710390125446
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD??ccWYGQKJ?WAaH?`GsOUHcICeCBoTP_
+
+(26,95)
+lambda2: 4.747915844597
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD??ccWYGQKJAWAaH?`GsOUHcICeCBoTP_
+
+(26,96)
+lambda2: 4.827678665806
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD?@ccWYGQKJAWAaH?`GsOUHcICeCBoTP_
+
+(26,97)
+lambda2: 4.861771078164
+graph6: Yp@GQGIOHKHEAO_wPQOQSaCD?@csWYGQKJAWAaH?`GsOUHcICeCBoTP_
+
+(26,98)
+lambda2: 4.889125941451
+graph6: YpPGQGIOHKHEAO_wPQOQSaCD?@csWYGQKJAWAaH?`GsOUHcICeCBoTP_
+
+(26,99)
+lambda2: 5.027659874930
+graph6: YpPGQGIOHKHEAO_wPQOQSaDD?@csWYGQKJAWAaH?`GsOUHcICeCBoTP_
+
+(26,100)
+lambda2: 5.097730983003
+graph6: YpPGQGIOHKHEAO_wPQOQSaDD?@csWYGQKJAWAaH?`GsoUHcICeCBoTP_
+
+(26,101)
+lambda2: 5.181760130072
+graph6: YpPGQGIOHKHEAO_wPQSQSaDD?@csWYGQKJAWAaH?`GsoUHcICeCBoTP_
+
+(26,102)
+lambda2: 5.189316247546
+graph6: YpPGQGIOHKHEAO_wPQSQSaDD?@csWYGQKJAWAaH?hGsoUHcICeCBoTP_
+
+(26,103)
+lambda2: 5.356798435740
+graph6: YpPGQGIOHKHEAO_wXQSQSaDD?@csWYGQKJAWAaH?hGsoUHcICeCBoTP_
+
+(26,104)
+lambda2: 5.381166561225
+graph6: YpPGQGIOHkHEAO_wXQSQSaDD?@csWYGQKJAWAaH?hGsoUHcICeCBoTP_
+
+(26,105)
+lambda2: 5.501963457737
+graph6: YpPGQGIoHkHEAO_wXQSQSaDD?@csWYGQKJAWAaH?hGsoUHcICeCBoTP_
+
+(26,106)
+lambda2: 5.694466105727
+graph6: YpPGQGIoHkHEAO_wXQSQSaDD?@csWYGQKJAWAeH?hGsoUHcICeCBoTP_
+
+(26,107)
+lambda2: 5.740090224667
+graph6: YpPGQGIoHkHEAO_wXQSQSaDD?@csWYGQKJAWAeH?hGsoUHcICeCBoTX_
+
+(26,108)
+lambda2: 5.822499860450
+graph6: YpPGQGIoHkHEAO_wXQSQSaDD?@csWYGQKJAWAeH?jGsoUHcICeCBoTX_
+
+(26,109)
+lambda2: 5.949568353333
+graph6: YpPKQGIoHkHEAO_wXQSQSaDD?@csWYGQKJAWAeH?jGsoUHcICeCBoTX_
+
+(26,110)
+lambda2: 5.950239303847
+graph6: YpPKQGIoHkHEAO_wXQSQSaDD?@ctWYGQKJAWAeH?jGsoUHcICeCBoTX_
+
+(26,111)
+lambda2: 5.952001029551
+graph6: YpPKQGIoHkHEAW_wXQSQSaDD?@ctWYGQKJAWAeH?jGsoUHcICeCBoTX_
+
+(26,112)
+lambda2: 6.008866875277
+graph6: YpPKQGIoHkHEAW_wXQSYSaDD?@ctWYGQKJAWAeH?jGsoUHcICeCBoTX_
+
+(26,113)
+lambda2: 6.157816333025
+graph6: YpPKQGIoHkHEAW_wXQSYSaDD?@ctWYGQKJAWAeH?jGsoUHcICeEBoTX_
+
+(26,114)
+lambda2: 6.158046198478
+graph6: YpPKQGIoHkHEAW_wXQSYSeDD?@ctWYGQKJAWAeH?jGsoUHcICeEBoTX_
+
+(26,115)
+lambda2: 6.169012278431
+graph6: YpPKQGIoHkHEAW_wXQSYSeDD?@ctWYgQKJAWAeH?jGsoUHcICeEBoTX_
+
+(26,116)
+lambda2: 6.355090597034
+graph6: YpPKQGIoHkHEEW_wXQSYSeDD?@ctWYgQKJAWAeH?jGsoUHcICeEBoTX_
+
+(26,117)
+lambda2: 6.445461381277
+graph6: YpPKQGIoHkHEEW_wXQSYSeDD?@ctWYgQKJaWAeH?jGsoUHcICeEBoTX_
+
+(26,118)
+lambda2: 6.619252695965
+graph6: YpPKQGIoHkHEEW_wXQSYSeDDC@ctWYgQKJaWAeH?jGsoUHcICeEBoTX_
+
+(26,119)
+lambda2: 6.706534487180
+graph6: YpPKQGIoHkHEEW_wXQSYSeDDC@ctWYgQKJaWAeH?jGsoUHcICeEBsTX_
+
+(26,120)
+lambda2: 6.772741471565
+graph6: YpPKQGIoHkHEEW_wXQSYSeDDC@ctWYgQKJaWAeH?jGsoUHcJCeEBsTX_
+
+(26,121)
+lambda2: 6.821795919377
+graph6: YpPKQGIoHkHEEW_wXQSYSeDDC@ctWYgQ[JaWAeH?jGsoUHcJCeEBsTX_
+
+(26,122)
+lambda2: 6.839787897426
+graph6: YpPKQGIoHkHEEW_wXQSYSeDDC@ctWYgQ[JaWAeH?jIsoUHcJCeEBsTX_
+
+(26,123)
+lambda2: 6.870708922780
+graph6: YpPKQGIoHkHEEW_wXQ[YSeDDC@ctWYgQ[JaWAeH?jIsoUHcJCeEBsTX_
+
+(26,124)
+lambda2: 7.068844185049
+graph6: YpPKQGIoHkHEEW_wXQ[YSeDDC@ctWYgQ[JaWBeH?jIsoUHcJCeEBsTX_
+
+(26,125)
+lambda2: 7.167861247276
+graph6: YpPKUGIoHkHEEW_wXQ[YSeDDC@ctWYgQ[JaWBeH?jIsoUHcJCeEBsTX_
+
+(26,126)
+lambda2: 7.169915367026
+graph6: YpPKUGIoHkHEEW_wXQ[YUeDDC@ctWYgQ[JaWBeH?jIsoUHcJCeEBsTX_
+
+(26,127)
+lambda2: 7.366238130599
+graph6: YpPKUWIoHkHEEW_wXQ[YUeDDC@ctWYgQ[JaWBeH?jIsoUHcJCeEBsTX_
+
+(26,128)
+lambda2: 7.443625958628
+graph6: YpPKUWIoHkHEEW_wXQ[YUeDDC@ctWYgQ[JaWBeL?jIsoUHcJCeEBsTX_
+
+(26,129)
+lambda2: 7.535568102428
+graph6: YpPKUWIoHkHEEW_wXQ[YUeDDC@cvWYgQ[JaWBeL?jIsoUHcJCeEBsTX_
+
+(26,130)
+lambda2: 7.570238359655
+graph6: YpPKUWIoHkHEEW_yXQ[YUeDDC@cvWYgQ[JaWBeL?jIsoUHcJCeEBsTX_
+
+(26,131)
+lambda2: 7.570498986193
+graph6: YpPKUWIoHkHEEW_yXQ[YUuDDC@cvWYgQ[JaWBeL?jIsoUHcJCeEBsTX_
+
+(26,132)
+lambda2: 7.731349834783
+graph6: YpPKUWIoHkHEEW_yXQ[YUuDDC@cvWYgQ[JaWBeL?jIsoUHcJCeFBsTX_
+
+(26,133)
+lambda2: 7.736447509743
+graph6: YpPKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[JaWBeL?jIsoUHcJCeFBsTX_
+
+(26,134)
+lambda2: 8.064036748302
+graph6: YpPKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[JaWBeL?jIsoUHcJCfFBsTX_
+
+(26,135)
+lambda2: 8.113627834408
+graph6: YppKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[JaWBeL?jIsoUHcJCfFBsTX_
+
+(26,136)
+lambda2: 8.120142888945
+graph6: YppKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[JaWBeLAjIsoUHcJCfFBsTX_
+
+(26,137)
+lambda2: 8.211124016820
+graph6: YppKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[NaWBeLAjIsoUHcJCfFBsTX_
+
+(26,138)
+lambda2: 8.223202331349
+graph6: YppKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[NaWBeLAjIsoUHcJCfFBs\X_
+
+(26,139)
+lambda2: 8.264585253148
+graph6: YppKUWIoHkHEEW`yXQ[YUuDDC@cvWYgQ[NaYBeLAjIsoUHcJCfFBs\X_
+
+(26,140)
+lambda2: 8.311004561216
+graph6: YppKUWIoHkHFEW`yXQ[YUuDDC@cvWYgQ[NaYBeLAjIsoUHcJCfFBs\X_
+
+(26,141)
+lambda2: 8.477504858545
+graph6: YppKUWIoHkHFEW`yXQ[YUuDDC@cvWYgQ{NaYBeLAjIsoUHcJCfFBs\X_
+
+(26,142)
+lambda2: 8.598964524080
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDC@cvWYgQ{NaYBeLAjIsoUHcJCfFBs\X_
+
+(26,143)
+lambda2: 8.601690035960
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDS@cvWYgQ{NaYBeLAjIsoUHcJCfFBs\X_
+
+(26,144)
+lambda2: 8.672810473996
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDS@cvWYgQ{NaYBeLAjIssUHcJCfFBs\X_
+
+(26,145)
+lambda2: 8.817466926314
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDS@cvWYgq{NaYBeLAjIssUHcJCfFBs\X_
+
+(26,146)
+lambda2: 8.998397760240
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDS@cvWYgq{NaYBeLAjIssUHdJCfFBs\X_
+
+(26,147)
+lambda2: 9.049066261884
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDS@cvWYgq{NbYBeLAjIssUHdJCfFBs\X_
+
+(26,148)
+lambda2: 9.100530602544
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDS@cvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,149)
+lambda2: 9.139146630027
+graph6: YppKU[IoHkHFEW`yXQ[YUuDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,150)
+lambda2: 9.193899704523
+graph6: YppKU[IoHkHFEWdyXQ[YUuDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,151)
+lambda2: 9.299358342625
+graph6: YppKU[IoHkHFEWdyXR[YUuDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,152)
+lambda2: 9.305358268759
+graph6: YppKU[IoHkHFEWdyXR[Y]uDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,153)
+lambda2: 9.326134667652
+graph6: YptKU[IoHkHFEWdyXR[Y]uDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,154)
+lambda2: 9.428533643677
+graph6: YptKU[IoHkHNEWdyXR[Y]uDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,155)
+lambda2: 9.428774904246
+graph6: YptKU[IohkHNEWdyXR[Y]uDDSHcvWYgq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,156)
+lambda2: 9.711070388332
+graph6: YptKU[IohkHNEWdyXR[Y]uDDSHcvW]gq{NbYBeLAjIssULdJCfFBs\X_
+
+(26,157)
+lambda2: 9.767711453993
+graph6: YptKU[IohkHNEWdyXR[Y]uDDSHcvW]gq{NbYBeLAjIssULdJCfFBs|X_
+
+(26,158)
+lambda2: 9.777832114851
+graph6: YptKU[IohkHNEWdyXR[Y]uDDSHcvW]gq{NbYBeLAjJssULdJCfFBs|X_
+
+(26,159)
+lambda2: 9.777941669349
+graph6: YptKU]IohkHNEWdyXR[Y]uDDSHcvW]gq{NbYBeLAjJssULdJCfFBs|X_
+
+(26,160)
+lambda2: 9.827013493620
+graph6: YptKU]IohkHNEWdyXR[Y]uDDSHcvW]gq{NbYBeLAjJssULdJKfFBs|X_
+
+(26,161)
+lambda2: 9.902232723706
+graph6: YptKU]IohkHNEWdyXR[]]uDDSHcvW]gq{NbYBeLAjJssULdJKfFBs|X_
+
+(26,162)
+lambda2: 9.912887223575
+graph6: YptKU]IohmHNEWdyXR[]]uDDSHcvW]gq{NbYBeLAjJssULdJKfFBs|X_
+
+(26,163)
+lambda2: 10.012262176533
+graph6: YptKU]IohmHNEWdyXR[]]uDDSHcvW]gq{nbYBeLAjJssULdJKfFBs|X_
+
+(26,164)
+lambda2: 10.114670812341
+graph6: YptKU]IohmHNEWdyXR[]]uDDSHcvW^gq{nbYBeLAjJssULdJKfFBs|X_
+
+(26,165)
+lambda2: 10.165822366255
+graph6: YptKU]IohmHNEWdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdJKfFBs|X_
+
+(26,166)
+lambda2: 10.242141569836
+graph6: YptKU]IohmHNEWdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdNKfFBs|X_
+
+(26,167)
+lambda2: 10.265067443270
+graph6: YptKU]IohmHNEWdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdNKnFBs|X_
+
+(26,168)
+lambda2: 10.265250782240
+graph6: Ypt[U]IohmHNEWdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdNKnFBs|X_
+
+(26,169)
+lambda2: 10.325184109530
+graph6: Ypt[U]IohmHNEWdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdNKnFbs|X_
+
+(26,170)
+lambda2: 10.335765597672
+graph6: Ypt[U]IohmHNEwdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdNKnFbs|X_
+
+(26,171)
+lambda2: 10.429903375049
+graph6: Ypt[U]IohmHNEwdyXR[]]uDDSHcvW^gq{nbYBeLajJssULdNKnFbs~X_
+
+(26,172)
+lambda2: 10.435574289710
+graph6: Ypt[U]IohmHNEwdyXR[]]uDDSHcvW^gq{nbYBeLajJssUNdNKnFbs~X_
+
+(26,173)
+lambda2: 10.537642445789
+graph6: Ypt[u]IohmHNEwdyXR[]]uDDSHcvW^gq{nbYBeLajJssUNdNKnFbs~X_
+
+(26,174)
+lambda2: 10.652382096466
+graph6: Ypt[u]IohmH^EwdyXR[]]uDDSHcvW^gq{nbYBeLajJssUNdNKnFbs~X_
+
+(26,175)
+lambda2: 10.732983261410
+graph6: Ypt[u]IohmH^EwdyXR[]]vDDSHcvW^gq{nbYBeLajJssUNdNKnFbs~X_
+
+(26,176)
+lambda2: 10.738813628584
+graph6: Ypt[u]IphmH^EwdyXR[]]vDDSHcvW^gq{nbYBeLajJssUNdNKnFbs~X_
+
+(26,177)
+lambda2: 10.812705467594
+graph6: Ypt[u]IphmH^EwdyXR[]]vDDSHcvW^gq{nbYBeLajJssUNdNKnNbs~X_
+
+(26,178)
+lambda2: 10.869834096043
+graph6: Ypt[u]IphmH^EwdyXR[]]vDDSHcvW^gq{nrYBeLajJssUNdNKnNbs~X_
+
+(26,179)
+lambda2: 11.021750212051
+graph6: Ypt[u]IphmH^EwdyXR[]]vDD[HcvW^gq{nrYBeLajJssUNdNKnNbs~X_
+
+(26,180)
+lambda2: 11.108310553544
+graph6: Ypt[u]IphmH^EwdyXR[]]vDD[HcvW^gq{nrYBfLajJssUNdNKnNbs~X_
+
+(26,181)
+lambda2: 11.200403874401
+graph6: Ypt[u]IphmH^EydyXR[]]vDD[HcvW^gq{nrYBfLajJssUNdNKnNbs~X_
+
+(26,182)
+lambda2: 11.427978452133
+graph6: Ypt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYBfLajJssUNdNKnNbs~X_
+
+(26,183)
+lambda2: 11.517097859241
+graph6: Ypt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYFfLajJssUNdNKnNbs~X_
+
+(26,184)
+lambda2: 11.623501823968
+graph6: Ypt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYFfLejJssUNdNKnNbs~X_
+
+(26,185)
+lambda2: 11.625178067599
+graph6: Ypt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYFfLejJssUNdNKnNbu~X_
+
+(26,186)
+lambda2: 11.682266136447
+graph6: Ypt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYFfLejJ{sUNdNKnNbu~X_
+
+(26,187)
+lambda2: 11.833273258248
+graph6: Ypt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYffLejJ{sUNdNKnNbu~X_
+
+(26,188)
+lambda2: 11.945164702957
+graph6: Yxt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYffLejJ{sUNdNKnNbu~X_
+
+(26,189)
+lambda2: 11.959988327973
+graph6: Yxt[u]IphmH^EydyXr[]]vDD[HcvW^gq{nrYffLejJ{sUNdNKnNbu~\_
+
+(26,190)
+lambda2: 11.968069446053
+graph6: Yxt[u]IphmH^EydyXr[]]vDD]HcvW^gq{nrYffLejJ{sUNdNKnNbu~\_
+
+(26,191)
+lambda2: 11.976862122961
+graph6: Yxt[u]IrhmH^EydyXr[]]vDD]HcvW^gq{nrYffLejJ{sUNdNKnNbu~\_
+
+(26,192)
+lambda2: 12.261580920795
+graph6: Yxt[u]IrhmH^EydyXr[]]vDD]HdvW^gq{nrYffLejJ{sUNdNKnNbu~\_
+
+(26,193)
+lambda2: 12.328504409911
+graph6: Yxt[u]Irhmh^EydyXr[]]vDD]HdvW^gq{nrYffLejJ{sUNdNKnNbu~\_
+
+(26,194)
+lambda2: 12.335038794916
+graph6: Yxt[u]Irhmh^EydyXr[]]vDD]HdvW^gq{nrYffLejJ{sUNdNKnNju~\_
+
+(26,195)
+lambda2: 12.627549687958
+graph6: Yxt[u]Irhmh^EydyXr[]]vLD]HdvW^gq{nrYffLejJ{sUNdNKnNju~\_
+
+(26,196)
+lambda2: 12.701983668187
+graph6: Yxt[u]Irhmh^EydyXr[]]vLD]HdvW^gq|nrYffLejJ{sUNdNKnNju~\_
+
+(26,197)
+lambda2: 12.858934059966
+graph6: Yxt[u]Irhmh^EydyXr[]]vLD]HdvX^gq|nrYffLejJ{sUNdNKnNju~\_
+
+(26,198)
+lambda2: 12.931542991158
+graph6: Yxt[u]Irhmh^EydyXr[]]vLD]HdvX^gq|nrYff\ejJ{sUNdNKnNju~\_
+
+(26,199)
+lambda2: 12.965443794834
+graph6: Yxt[u]Irhmh^EydyXr[]]vLD]HdvX^gq|nrYff\ejJ{sUNdNMnNju~\_
+
+(26,200)
+lambda2: 12.967012752915
+graph6: Yxt[u]Mrhmh^EydyXr[]]vLD]HdvX^gq|nrYff\ejJ{sUNdNMnNju~\_
+
+(26,201)
+lambda2: 13.120025895378
+graph6: Yxt[u]Mrhmh^EydyXr[]]vLD]HdvX^gq|nrYff\ejJ{sUndNMnNju~\_
+
+(26,202)
+lambda2: 13.144698178775
+graph6: Yxt[v]Mrhmh^EydyXr[]]vLD]HdvX^gq|nrYff\ejJ{sUndNMnNju~\_
+
+(26,203)
+lambda2: 13.278137936701
+graph6: Yxt[v]Mrhmh^Eydy\r[]]vLD]HdvX^gq|nrYff\ejJ{sUndNMnNju~\_
+
+(26,204)
+lambda2: 13.398691926597
+graph6: Yxt[v]Mrhmh^Eydy\r[]]vLD]XdvX^gq|nrYff\ejJ{sUndNMnNju~\_
+
+(26,205)
+lambda2: 13.486832240160
+graph6: Yxt[v]Mrhmh^Eydy\r[]]vLD]XdvX^gr|nrYff\ejJ{sUndNMnNju~\_
+
+(26,206)
+lambda2: 13.486949792899
+graph6: Yxt[v]Mrhmj^Eydy\r[]]vLD]XdvX^gr|nrYff\ejJ{sUndNMnNju~\_
+
+(26,207)
+lambda2: 13.496082227217
+graph6: Yxt[v]Mrhmj^Eydy\r\]]vLD]XdvX^gr|nrYff\ejJ{sUndNMnNju~\_
+
+(26,208)
+lambda2: 13.496082227217
+graph6: Yxt[v]Mrhmj^Eydy\r\]]~LD]XdvX^gr|nrYff\ejJ{sUndNMnNju~\_
+
+(26,209)
+lambda2: 13.513699186417
+graph6: Yxt[v]Mrhmj^Eydy\r\}]~LD]XdvX^gr|nrYff\ejJ{sUndNMnNju~\_
+
+(26,210)
+lambda2: 13.736190124910
+graph6: Yxt[v]Mrhmj^Eydy\r\}]~LD]XdvX^gr|nrYff\ejJ{{UndNMnNju~\_
+
+(26,211)
+lambda2: 13.891826552693
+graph6: Yxt[v]Mrhmj^Eydy\r\}]~LD]XdvX^gr|nrYff\ejJ{{UndnMnNju~\_
+
+(26,212)
+lambda2: 13.949253520874
+graph6: Yxt[v]Mrhmj^eydy\r\}]~LD]XdvX^gr|nrYff\ejJ{{UndnMnNju~\_
+
+(26,213)
+lambda2: 13.965995913881
+graph6: Yxt[v]Mrhmj^eydy\r\}]~LD]XdvX^gr|nrYff\ejJ{{UndnNnNju~\_
+
+(26,214)
+lambda2: 13.991654843980
+graph6: Yxt[v]Mrhmj^eydy\r\}]~LD]XdvX^gr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,215)
+lambda2: 14.014591534706
+graph6: Yxt[v]Mrjmj^eydy\r\}]~LD]XdvX^gr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,216)
+lambda2: 14.147657837575
+graph6: Yxt[v]Mrjmj^eydy\r\}]~LD}XdvX^gr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,217)
+lambda2: 14.160740874297
+graph6: Yxt[v]Mrjmj^eydy\r\}]~LD}XdvX^kr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,218)
+lambda2: 14.413338391549
+graph6: Yxt[v]Mrjmj^eydy\r\}]~LL}XdvX^kr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,219)
+lambda2: 14.696121769575
+graph6: Yx|[v]Mrjmj^eydy\r\}]~LL}XdvX^kr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,220)
+lambda2: 14.823908493274
+graph6: Yx|[v]Mrjmj^e}dy\r\}]~LL}XdvX^kr|nrYff^ejJ{{UndnNnNju~\_
+
+(26,221)
+lambda2: 14.967006043309
+graph6: Yx|[v]Mrjmj^e}dy\r\}]~LL}XdvX^kr|nrYff^ezJ{{UndnNnNju~\_
+
+(26,222)
+lambda2: 14.972589185133
+graph6: Yx|[v]Mrjmj^e}dy\r\}]~LL}XdvX^kr|nrYff^ezJ{{UntnNnNju~\_
+
+(26,223)
+lambda2: 15.008739605174
+graph6: Yx|[v]Mrjmj^e}dy\r\}]~LL}XdvX^kr|nrYff^ezJ{{UntnNnNj}~\_
+
+(26,224)
+lambda2: 15.125566023778
+graph6: Yx|[v]Mrjmj^e}dy\r\}]~NL}XdvX^kr|nrYff^ezJ{{UntnNnNj}~\_
+
+(26,225)
+lambda2: 15.240862691788
+graph6: Yx|[v]Mrjnj^e}dy\r\}]~NL}XdvX^kr|nrYff^ezJ{{UntnNnNj}~\_
+
+(26,226)
+lambda2: 15.253535273173
+graph6: Yx|[v]Mrjnj^e}dy\z\}]~NL}XdvX^kr|nrYff^ezJ{{UntnNnNj}~\_
+
+(26,227)
+lambda2: 15.258320613238
+graph6: Yx|[v]Mrjnj^e}dy\z\}]~NL}XdvX^kr|nrYff^ezJ{{UntnNnNn}~\_
+
+(26,228)
+lambda2: 15.460718326024
+graph6: Yx|[v]Mrjnj^e}dy\z\}]~NL}XtvX^kr|nrYff^ezJ{{UntnNnNn}~\_
+
+(26,229)
+lambda2: 15.608574129510
+graph6: Yx~[v]Mrjnj^e}dy\z\}]~NL}XtvX^kr|nrYff^ezJ{{UntnNnNn}~\_
+
+(26,230)
+lambda2: 15.623144729744
+graph6: Yx~[v]Mrjnj^e}ly\z\}]~NL}XtvX^kr|nrYff^ezJ{{UntnNnNn}~\_
+
+(26,231)
+lambda2: 15.775970463432
+graph6: Yx~[v]Mrnnj^e}ly\z\}]~NL}XtvX^kr|nrYff^ezJ{{UntnNnNn}~\_
+
+(26,232)
+lambda2: 15.994074777447
+graph6: Yx~[v]Mrnnj^e}ly\z\}]~NL}XtvX^kr|nr]ff^ezJ{{UntnNnNn}~\_
+
+(26,233)
+lambda2: 15.997868844320
+graph6: Yx~[v]Mrnnj^e}ly\z\}]~NL}XtvX^kr|nr]ff^ezJ{{Untn^nNn}~\_
+
+(26,234)
+lambda2: 15.999117643145
+graph6: Yx~[v]Mrnnj^e}ly\z\}]~NL}XtvX^mr|nr]ff^ezJ{{Untn^nNn}~\_
+
+(26,235)
+lambda2: 16.004195231328
+graph6: Yx~]v]Mrnnj^e}ly\z\}]~NL}XtvX^mr|nr]ff^ezJ{{Untn^nNn}~\_
+
+(26,236)
+lambda2: 16.164672029129
+graph6: Yx~]v]Mrnnj^e}ly\z\}]~NL}X|vX^mr|nr]ff^ezJ{{Untn^nNn}~\_
+
+(26,237)
+lambda2: 16.291808430185
+graph6: Yx~]v]Mrnnj^e}l}\z\}]~NL}X|vX^mr|nr]ff^ezJ{{Untn^nNn}~\_
+
+(26,238)
+lambda2: 16.394011664498
+graph6: Yx~]v]Mrnnj^e}l}\z\}]~NL}X|vX^mr|nr]ff^ezJ{{]ntn^nNn}~\_
+
+(26,239)
+lambda2: 16.432885094346
+graph6: Yx~]v]Mrnnj^e}l}\z\}]~NL}X|vX^mr|nr]ff^ezJ{{}ntn^nNn}~\_
+
+(26,240)
+lambda2: 16.507216784956
+graph6: Yx~]v]Mrnnj^e}l}\z\}]~NL}X|vX~mr|nr]ff^ezJ{{}ntn^nNn}~\_
+
+(26,241)
+lambda2: 16.620266341144
+graph6: Yx~]v]Mrnnj^e}l}\~\}]~NL}X|vX~mr|nr]ff^ezJ{{}ntn^nNn}~\_
+
+(26,242)
+lambda2: 16.751310602247
+graph6: Yx~]v]Mrnnj^e}l}\~\}]~Nl}X|vX~mr|nr]ff^ezJ{{}ntn^nNn}~\_
+
+(26,243)
+lambda2: 16.822717790708
+graph6: Yx~]v]Mrnnj^e}l}\~\}]~Nl}X|vX~mr|nr]ff^ezZ{{}ntn^nNn}~\_
+
+(26,244)
+lambda2: 16.822731445581
+graph6: Yx~]v]Mrnnj^e}l}\~\}]~Nl}X|vX~mr|nr]ff^ezZ{{}ntn^~Nn}~\_
+
+(26,245)
+lambda2: 16.934806664518
+graph6: Yx~]v]Mrnnj^e}l}\~\}]~Nl}X|vX~mr|nz]ff^ezZ{{}ntn^~Nn}~\_
+
+(26,246)
+lambda2: 16.960499494604
+graph6: Yx~]v]]rnnj^e}l}\~\}]~Nl}X|vX~mr|nz]ff^ezZ{{}ntn^~Nn}~\_
+
+(26,247)
+lambda2: 16.960499494604
+graph6: Yx~]v]]rnnn^e}l}\~\}]~Nl}X|vX~mr|nz]ff^ezZ{{}ntn^~Nn}~\_
+
+(26,248)
+lambda2: 17.216126270995
+graph6: Yx~]v]]rnnn^e}l}\~\}]~Nl}X|vX~mr|nz]ff^ezZ{{}ntn^~Nn~~\_
+
+(26,249)
+lambda2: 17.267996494482
+graph6: Yx~]v]]rnnn^e}l}\~\}]~Nl}X|vX~mr|nz]ff^ezZ{{~ntn^~Nn~~\_
+
+(26,250)
+lambda2: 17.343736031164
+graph6: Yx~]v]]rnnn^e}l}\~\}}~Nl}X|vX~mr|nz]ff^ezZ{{~ntn^~Nn~~\_
+
+(26,251)
+lambda2: 17.449146366365
+graph6: Yx~]~]]rnnn^e}l}\~\}}~Nl}X|vX~mr|nz]ff^ezZ{{~ntn^~Nn~~\_
+
+(26,252)
+lambda2: 17.549017478274
+graph6: Yx~]~]]rnnn^e}l}\~\}}~Nl}X|vX~mr|nz]ff^ezZ|{~ntn^~Nn~~\_
+
+(26,253)
+lambda2: 17.741445360349
+graph6: Yx~]~]^rnnn^e}l}\~\}}~Nl}X|vX~mr|nz]ff^ezZ|{~ntn^~Nn~~\_
+
+(26,254)
+lambda2: 17.743939955000
+graph6: Yx~]~]^rnnn^e}l}\~\}}~Nl~X|vX~mr|nz]ff^ezZ|{~ntn^~Nn~~\_
+
+(26,255)
+lambda2: 17.767760484263
+graph6: Yx~]~]^rnnn^e}l}\~\}}~N|~X|vX~mr|nz]ff^ezZ|{~ntn^~Nn~~\_
+
+(26,256)
+lambda2: 17.767918774907
+graph6: Yx~]~]^rnnn^e}l}\~\}}~N|~X|vX~mr|nz]ff^ezZ|{~ntn^~nn~~\_
+
+(26,257)
+lambda2: 18.003661904563
+graph6: Yx~]~]^rn~n^e}l}\~\}}~N|~X|vX~mr|nz]ff^ezZ|{~ntn^~nn~~\_
+
+(26,258)
+lambda2: 18.056533846705
+graph6: Yx~]~]^rn~n^e}l}\~\}}~N|~X|vX~mr~nz]ff^ezZ|{~ntn^~nn~~\_
+
+(26,259)
+lambda2: 18.056703748909
+graph6: Yx~]~]^rn~n^e}l}\~\}}~N|~X|vx~mr~nz]ff^ezZ|{~ntn^~nn~~\_
+
+(26,260)
+lambda2: 18.056749296926
+graph6: Yx~]~]^rn~n^e}l}\~\}}~N|~X|vx~mr~nz]fn^ezZ|{~ntn^~nn~~\_
+
+(26,261)
+lambda2: 18.058844125753
+graph6: Yx~]~]^rn~n^e}l}\~\}}~N|~X|vx~mv~nz]fn^ezZ|{~ntn^~nn~~\_
+
+(26,262)
+lambda2: 18.235335577909
+graph6: Yx~]~}^rn~n^e}l}\~\}}~N|~X|vx~mv~nz]fn^ezZ|{~ntn^~nn~~\_
+
+(26,263)
+lambda2: 18.306759476735
+graph6: Yx~]~}^rn~n^e}l}\~\}}~N|~X|vx~mv~nz]fn^ez^|{~ntn^~nn~~\_
+
+(26,264)
+lambda2: 18.585786437627
+graph6: Yx~]~}~rn~n^e}l}\~\}}~N|~X|vx~mv~nz]fn^ez^|{~ntn^~nn~~\_
+
+(26,265)
+lambda2: 18.585786437627
+graph6: Yx~]~}~rn~n^e}l}\~\}}~N|~X|vx~mv~nz]fn^ez^|}~ntn^~nn~~\_
+
+(26,266)
+lambda2: 18.585786437627
+graph6: Yx~]~}~rn~n^e}l}\~\}}~N|~X|vx~mv~nz]vn^ez^|}~ntn^~nn~~\_
+
+(26,267)
+lambda2: 18.829913513374
+graph6: Yx~]~}~rn~n^e}l}\~\}}~N|~X|vx~mv~nz]vn~ez^|}~ntn^~nn~~\_
+
+(26,268)
+lambda2: 18.844179039577
+graph6: Yx~]~}~rn~n^e}l~\~\}}~N|~X|vx~mv~nz]vn~ez^|}~ntn^~nn~~\_
+
+(26,269)
+lambda2: 18.918397404060
+graph6: Yx~]~}~rn~n^e}l~\~\}}~^|~X|vx~mv~nz]vn~ez^|}~ntn^~nn~~\_
+
+(26,270)
+lambda2: 19.216322326352
+graph6: Yx~]~}~rn~n^e}l~\~\}}~^|~\|vx~mv~nz]vn~ez^|}~ntn^~nn~~\_
+
+(26,271)
+lambda2: 19.267949192431
+graph6: Yx~]~}~rn~n^e}l~\~\}}~^|~\|vx~nv~nz]vn~ez^|}~ntn^~nn~~\_
+
+(26,272)
+lambda2: 19.267949192431
+graph6: Yx~]~}~rn~~^e}l~\~\}}~^|~\|vx~nv~nz]vn~ez^|}~ntn^~nn~~\_
+
+(26,273)
+lambda2: 19.267949192431
+graph6: Yx~]~}~rn~~^e}l~\~\}}~^|~\|vx~nv~nz]vn~ez^|}~nvn^~nn~~\_
+
+(26,274)
+lambda2: 19.267949192431
+graph6: Y|~]~}~rn~~^e}l~\~\}}~^|~\|vx~nv~nz]vn~ez^|}~nvn^~nn~~\_
+
+(26,275)
+lambda2: 19.610807528324
+graph6: Y|~]~}~rn~~^m}l~\~\}}~^|~\|vx~nv~nz]vn~ez^|}~nvn^~nn~~\_
+
+(26,276)
+lambda2: 19.610807528324
+graph6: Y|~]~}~rn~~^m}l~\~\}}~^|~\|vx~nv~nz}vn~ez^|}~nvn^~nn~~\_
+
+(26,277)
+lambda2: 19.610961913470
+graph6: Y|~]~}~rn~~^m}l~\~\}}~^~~\|vx~nv~nz}vn~ez^|}~nvn^~nn~~\_
+
+(26,278)
+lambda2: 19.951480291411
+graph6: Y|~]~}~rn~~^m}l~\~\}~~^~~\|vx~nv~nz}vn~ez^|}~nvn^~nn~~\_
+
+(26,279)
+lambda2: 20.000000000000
+graph6: Y|~]~}~zn~~^m}l~\~\}~~^~~\|vx~nv~nz}vn~ez^|}~nvn^~nn~~\_
+
+(26,280)
+lambda2: 20.000000000000
+graph6: Y|~]~}~zn~~^m}l~\~\}~~^~~\|vx~nv~nz}vn~ez^|}~nvn^~nn~~^_
+
+(26,281)
+lambda2: 20.085721157581
+graph6: Y|~]~}~zn~~^m}n~\~\}~~^~~\|vx~nv~nz}vn~ez^|}~nvn^~nn~~^_
+
+(26,282)
+lambda2: 20.085721157581
+graph6: Y|~]~}~zn~~^m}n~\~\}~~^~~\|vx~nv~nz}vn~e~^|}~nvn^~nn~~^_
+
+(26,283)
+lambda2: 20.085721157581
+graph6: Y|~]~}~zn~~^m}n~\~\}~~^~~\|vx~nv~nz}vn~u~^|}~nvn^~nn~~^_
+
+(26,284)
+lambda2: 20.407385257960
+graph6: Y|~]~}~zn~~^m}n~\~\}~~^~~\|vx~nv~nz}vn~u~^~}~nvn^~nn~~^_
+
+(26,285)
+lambda2: 20.407385257960
+graph6: Y|~]~}~zn~~^m}n~\~\}~~^~~\|v|~nv~nz}vn~u~^~}~nvn^~nn~~^_
+
+(26,286)
+lambda2: 20.697224362268
+graph6: Y|~^~}~zn~~^m}n~\~\}~~^~~\|v|~nv~nz}vn~u~^~}~nvn^~nn~~^_
+
+(26,287)
+lambda2: 20.763932022500
+graph6: Y|~^~}~zn~~^m}n~^~\}~~^~~\|v|~nv~nz}vn~u~^~}~nvn^~nn~~^_
+
+(26,288)
+lambda2: 20.763932022500
+graph6: Y|~^~}~zn~~^m}n~^~\}~~^~~\|v~~nv~nz}vn~u~^~}~nvn^~nn~~^_
+
+(26,289)
+lambda2: 21.096788074088
+graph6: Y|~^~}~zn~~^m}n~^~\}~~^~~\|v~~nv~nz}vn~v~^~}~nvn^~nn~~^_
+
+(26,290)
+lambda2: 21.096788074088
+graph6: Y|~^~}~zn~~^m}n~^~\}~~^~~\|v~~nv~nz}vn~v~^~}~nvn~~nn~~^_
+
+(26,291)
+lambda2: 21.267949192431
+graph6: Y|~^~}~zn~~^m}n~^~\}~~^~~\|v~~nv~~z}vn~v~^~}~nvn~~nn~~^_
+
+(26,292)
+lambda2: 21.585786437627
+graph6: Y|~^~}~zn~~^m}n~^~|}~~^~~\|v~~nv~~z}vn~v~^~}~nvn~~nn~~^_
+
+(26,293)
+lambda2: 22.000000000000
+graph6: Y|~^~}~zn~~^m}n~^~|}~~^~~\|v~~nv~~z}vn~v~^~}~nvn~~~n~~^_
+
+(26,294)
+lambda2: 22.000000000000
+graph6: Y|~^~}~zn~~^}}n~^~|}~~^~~\|v~~nv~~z}vn~v~^~}~nvn~~~n~~^_
+
+(26,295)
+lambda2: 22.000000000000
+graph6: Y|~^~}~zn~~^}}n~^~|}~~^~~\|v~~nv~~z}vn~v~^~}~nvn~~~~~~^_
+
+(26,296)
+lambda2: 22.000000000000
+graph6: Y|~^~}~zn~~^}}n~^~|}~~^~~\|v~~nv~~z~vn~v~^~}~nvn~~~~~~^_
+
+(26,297)
+lambda2: 22.000000000000
+graph6: Y|~^~~~zn~~^}}n~^~|}~~^~~\|v~~nv~~z~vn~v~^~}~nvn~~~~~~^_
+
+(26,298)
+lambda2: 22.000000000000
+graph6: Y|~^~~~zn~~^}}n~~~|}~~^~~\|v~~nv~~z~vn~v~^~}~nvn~~~~~~^_
+
+(26,299)
+lambda2: 22.000000000000
+graph6: Y|~^~~~zn~~^}}n~~~|}~~^~~\|v~~~v~~z~vn~v~^~}~nvn~~~~~~^_
+
+(26,300)
+lambda2: 22.000000000000
+graph6: Y|~^~~~zn~~^}}n~~~|}~~^~~\|v~~~v~~z~vn~v~~~}~nvn~~~~~~^_
+
+(26,301)
+lambda2: 22.000000000000
+graph6: Y|~^~~~z~~~^}}n~~~|}~~^~~\|v~~~v~~z~vn~v~~~}~nvn~~~~~~^_
+
+(26,302)
+lambda2: 22.000000000000
+graph6: Y|~^~~~z~~~^~}n~~~|}~~^~~\|v~~~v~~z~vn~v~~~}~nvn~~~~~~^_
+
+(26,303)
+lambda2: 22.000000000000
+graph6: Y|~^~~~z~~~^~}n~~~|}~~^~~\|v~~~v~~z~vn~v~~~}~nv~~~~~~~^_
+
+(26,304)
+lambda2: 22.000000000000
+graph6: Y|~^~~~z~~~^~}n~~~|}~~^~~\|v~~~v~~z~vn~~~~~}~nv~~~~~~~^_
+
+(26,305)
+lambda2: 22.267949192431
+graph6: Y|~^~~~z~~~^~}n~~~~}~~^~~\|v~~~v~~z~vn~~~~~}~nv~~~~~~~^_
+
+(26,306)
+lambda2: 22.585786437627
+graph6: Y|~~~~~z~~~^~}n~~~~}~~^~~\|v~~~v~~z~vn~~~~~}~nv~~~~~~~^_
+
+(26,307)
+lambda2: 22.585786437627
+graph6: Y|~~~~~z~~~^~}n~~~~}~~^~~\~v~~~v~~z~vn~~~~~}~nv~~~~~~~^_
+
+(26,308)
+lambda2: 22.585786437627
+graph6: Y|~~~~~z~~~^~}n~~~~}~~^~~|~v~~~v~~z~vn~~~~~}~nv~~~~~~~^_
+
+(26,309)
+lambda2: 22.585786437627
+graph6: Y|~~~~~z~~~^~}n~~~~}~~^~~|~v~~~v~~z~vn~~~~~}~~v~~~~~~~^_
+
+(26,310)
+lambda2: 22.585786437627
+graph6: Y|~~~~~z~~~^~~n~~~~}~~^~~|~v~~~v~~z~vn~~~~~}~~v~~~~~~~^_
+
+(26,311)
+lambda2: 23.000000000000
+graph6: Y|~~~~~z~~~^~~n~~~~}~~^~~|~v~~~v~~z~~n~~~~~}~~v~~~~~~~^_
+
+(26,312)
+lambda2: 23.000000000000
+graph6: Y|~~~~~z~~~^~~n~~~~}~~^~~|~v~~~v~~z~~n~~~~~~~~v~~~~~~~^_
+
+(26,313)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~^~~n~~~~}~~^~~|~v~~~v~~z~~n~~~~~~~~v~~~~~~~^_
+
+(26,314)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~n~~~~}~~^~~|~v~~~v~~z~~n~~~~~~~~v~~~~~~~^_
+
+(26,315)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~n~~~~}~~^~~|~v~~~v~~z~~~~~~~~~~~v~~~~~~~^_
+
+(26,316)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~~~~~~}~~^~~|~v~~~v~~z~~~~~~~~~~~v~~~~~~~^_
+
+(26,317)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~~~~~~}~~^~~|~v~~~v~~z~~~~~~~~~~~v~~~~~~~~_
+
+(26,318)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~~~~~~}~~~~~|~v~~~v~~z~~~~~~~~~~~v~~~~~~~~_
+
+(26,319)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~~~~~~}~~~~~~~v~~~v~~z~~~~~~~~~~~v~~~~~~~~_
+
+(26,320)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~~~~~~}~~~~~~~~~~~v~~z~~~~~~~~~~~v~~~~~~~~_
+
+(26,321)
+lambda2: 24.000000000000
+graph6: Y~~~~~~z~~~~~~~~~~~}~~~~~~~~~~~v~~~~~~~~~~~~~~v~~~~~~~~_
+
+(26,322)
+lambda2: 24.000000000000
+graph6: Y~~~~~~~~~~~~~~~~~~}~~~~~~~~~~~v~~~~~~~~~~~~~~v~~~~~~~~_
+
+(26,323)
+lambda2: 24.000000000000
+graph6: Y~~~~~~~~~~~~~~~~~~}~~~~~~~~~~~~~~~~~~~~~~~~~~v~~~~~~~~_
+
+(26,324)
+lambda2: 24.000000000000
+graph6: Y~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~v~~~~~~~~_
+

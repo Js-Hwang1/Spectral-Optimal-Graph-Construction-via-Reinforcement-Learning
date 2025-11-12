@@ -1,0 +1,220 @@
+(12,11)
+lambda2: 0.068148347422
+graph6: Ko?_A?O@CC?d
+
+(12,12)
+lambda2: 0.267949192431
+graph6: Ko?_A?O@CC@d
+
+(12,13)
+lambda2: 0.267949192431
+graph6: KoA_A?O@CC@d
+
+(12,14)
+lambda2: 0.657076917223
+graph6: KoA_A?O@DC@d
+
+(12,15)
+lambda2: 0.657076917223
+graph6: KoA_A?O`DC@d
+
+(12,16)
+lambda2: 0.877305019630
+graph6: KoA_A_O`DC@d
+
+(12,17)
+lambda2: 0.937887255848
+graph6: KoA_A_O`DCDd
+
+(12,18)
+lambda2: 1.186393497352
+graph6: KoAoA_O`DCDd
+
+(12,19)
+lambda2: 1.345682880224
+graph6: KoAoAaO`DCDd
+
+(12,20)
+lambda2: 1.438447187191
+graph6: KoAqAaO`DCDd
+
+(12,21)
+lambda2: 1.788666326826
+graph6: KoQqAaO`DCDd
+
+(12,22)
+lambda2: 2.000000000000
+graph6: KoQqAaO`DKDd
+
+(12,23)
+lambda2: 2.144227493364
+graph6: KoQqAao`DKDd
+
+(12,24)
+lambda2: 2.144227493364
+graph6: KoQqAao`DLDd
+
+(12,25)
+lambda2: 2.306005182944
+graph6: KoQqAao`LLDd
+
+(12,26)
+lambda2: 2.604706898810
+graph6: KoQuAao`LLDd
+
+(12,27)
+lambda2: 2.802196355461
+graph6: KoQuAap`LLDd
+
+(12,28)
+lambda2: 2.926933610708
+graph6: KoQuAap`LLLd
+
+(12,29)
+lambda2: 3.070732208663
+graph6: KoQuBap`LLLd
+
+(12,30)
+lambda2: 3.292036719898
+graph6: KoUuBap`LLLd
+
+(12,31)
+lambda2: 3.536088617553
+graph6: KoUuBqp`LLLd
+
+(12,32)
+lambda2: 3.776738604243
+graph6: KoUuBqp`LLld
+
+(12,33)
+lambda2: 4.000000000000
+graph6: KoUuBqp`LLlf
+
+(12,34)
+lambda2: 4.056674537447
+graph6: KwUuBqp`LLlf
+
+(12,35)
+lambda2: 4.206616156608
+graph6: KwU}Bqp`LLlf
+
+(12,36)
+lambda2: 4.483420182548
+graph6: KwU}BqpdLLlf
+
+(12,37)
+lambda2: 4.593679936671
+graph6: KwU}BqpdLLlv
+
+(12,38)
+lambda2: 4.653757263269
+graph6: KwU}BqtdLLlv
+
+(12,39)
+lambda2: 5.117580666008
+graph6: KwU}bqtdLLlv
+
+(12,40)
+lambda2: 5.293460052189
+graph6: K{U}bqtdLLlv
+
+(12,41)
+lambda2: 5.483066327268
+graph6: K{U}bytdLLlv
+
+(12,42)
+lambda2: 5.585786437627
+graph6: K}U}bytdLLlv
+
+(12,43)
+lambda2: 5.596740458447
+graph6: K}U}jytdLLlv
+
+(12,44)
+lambda2: 6.000000000000
+graph6: K}U}j}tdLLlv
+
+(12,45)
+lambda2: 6.042831075694
+graph6: K}U}j}vdLLlv
+
+(12,46)
+lambda2: 6.267949192431
+graph6: K}U}j}vfLLlv
+
+(12,47)
+lambda2: 6.334644025782
+graph6: K}U}j}vfL\lv
+
+(12,48)
+lambda2: 6.411262446922
+graph6: K}U}j}vfL\|v
+
+(12,49)
+lambda2: 6.599972980649
+graph6: K}U~j}vfL\|v
+
+(12,50)
+lambda2: 7.000000000000
+graph6: K}u~j}vfL\|v
+
+(12,51)
+lambda2: 7.035289257278
+graph6: K}u~j}~fL\|v
+
+(12,52)
+lambda2: 7.438447187191
+graph6: K}u~j}~f\\|v
+
+(12,53)
+lambda2: 7.501106225402
+graph6: K}u~j~~f\\|v
+
+(12,54)
+lambda2: 8.000000000000
+graph6: K}u~j~~f\||v
+
+(12,55)
+lambda2: 8.068148347422
+graph6: K~u~j~~f\||v
+
+(12,56)
+lambda2: 8.267949192431
+graph6: K~u~z~~f\||v
+
+(12,57)
+lambda2: 8.267949192431
+graph6: K~u~z~~n\||v
+
+(12,58)
+lambda2: 9.000000000000
+graph6: K~u~z~~~\||v
+
+(12,59)
+lambda2: 9.000000000000
+graph6: K~v~z~~~\||v
+
+(12,60)
+lambda2: 9.000000000000
+graph6: K~~~z~~~\||v
+
+(12,61)
+lambda2: 9.000000000000
+graph6: K~~~z~~~^||v
+
+(12,62)
+lambda2: 10.000000000000
+graph6: K~~~z~~~^~|v
+
+(12,63)
+lambda2: 10.000000000000
+graph6: K~~~z~~~^~~v
+
+(12,64)
+lambda2: 10.000000000000
+graph6: K~~~z~~~~~~v
+
+(12,65)
+lambda2: 10.000000000000
+graph6: K~~~z~~~~~~~
+

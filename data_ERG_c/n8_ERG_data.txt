@@ -1,0 +1,84 @@
+(8,7)
+lambda2: 0.152240934977
+graph6: GoGGOS
+
+(8,8)
+lambda2: 0.585786437627
+graph6: GoGGOs
+
+(8,9)
+lambda2: 0.585786437627
+graph6: GoGKOs
+
+(8,10)
+lambda2: 1.267949192431
+graph6: GoGkOs
+
+(8,11)
+lambda2: 1.267949192431
+graph6: GpGkOs
+
+(8,12)
+lambda2: 2.000000000000
+graph6: GpGkos
+
+(8,13)
+lambda2: 2.000000000000
+graph6: GxGkos
+
+(8,14)
+lambda2: 2.267949192431
+graph6: GxGlos
+
+(8,15)
+lambda2: 2.369897696795
+graph6: GxGlps
+
+(8,16)
+lambda2: 2.763932022500
+graph6: GxIlps
+
+(8,17)
+lambda2: 3.096788074088
+graph6: GxMlps
+
+(8,18)
+lambda2: 4.000000000000
+graph6: GxMlts
+
+(8,19)
+lambda2: 4.000000000000
+graph6: GxMnts
+
+(8,20)
+lambda2: 4.000000000000
+graph6: GzMnts
+
+(8,21)
+lambda2: 4.000000000000
+graph6: GzNnts
+
+(8,22)
+lambda2: 4.585786437627
+graph6: G~Nnts
+
+(8,23)
+lambda2: 4.585786437627
+graph6: G~Nnt{
+
+(8,24)
+lambda2: 6.000000000000
+graph6: G~N~t{
+
+(8,25)
+lambda2: 6.000000000000
+graph6: G~^~t{
+
+(8,26)
+lambda2: 6.000000000000
+graph6: G~~~t{
+
+(8,27)
+lambda2: 6.000000000000
+graph6: G~~~v{
+

@@ -1,0 +1,180 @@
+(11,10)
+lambda2: 0.081014052771
+graph6: Jo@?GA?QCA_
+
+(11,11)
+lambda2: 0.317492934338
+graph6: Jo@?GA?QCE_
+
+(11,12)
+lambda2: 0.317492934338
+graph6: Jo@?GA@QCE_
+
+(11,13)
+lambda2: 0.671713177163
+graph6: Jo@@GA@QCE_
+
+(11,14)
+lambda2: 0.780643808965
+graph6: Jo`@GA@QCE_
+
+(11,15)
+lambda2: 1.045920385377
+graph6: Jo`@GA@QcE_
+
+(11,16)
+lambda2: 1.095484974043
+graph6: Jo`@WA@QcE_
+
+(11,17)
+lambda2: 1.327856597988
+graph6: Jo`@WADQcE_
+
+(11,18)
+lambda2: 1.436146998087
+graph6: Jop@WADQcE_
+
+(11,19)
+lambda2: 1.687988557527
+graph6: JopHWADQcE_
+
+(11,20)
+lambda2: 2.208712152522
+graph6: JopHWADUcE_
+
+(11,21)
+lambda2: 2.267949192431
+graph6: JopHWQDUcE_
+
+(11,22)
+lambda2: 2.381966011250
+graph6: JopHWQDVcE_
+
+(11,23)
+lambda2: 2.771671784053
+graph6: JopHXQDVcE_
+
+(11,24)
+lambda2: 3.000000000000
+graph6: JopHXQDVdE_
+
+(11,25)
+lambda2: 3.000000000000
+graph6: JopHXQTVdE_
+
+(11,26)
+lambda2: 3.267949192431
+graph6: JophXQTVdE_
+
+(11,27)
+lambda2: 3.267949192431
+graph6: JothXQTVdE_
+
+(11,28)
+lambda2: 3.631691364603
+graph6: JqthXQTVdE_
+
+(11,29)
+lambda2: 3.838009008652
+graph6: JqtlXQTVdE_
+
+(11,30)
+lambda2: 3.936117175368
+graph6: JqtlXRTVdE_
+
+(11,31)
+lambda2: 4.332822095740
+graph6: JqtlXRTVtE_
+
+(11,32)
+lambda2: 4.543932419531
+graph6: JqtlXRTVtF_
+
+(11,33)
+lambda2: 4.716962757509
+graph6: JqtlXRVVtF_
+
+(11,34)
+lambda2: 4.744985473943
+graph6: JqtlZRVVtF_
+
+(11,35)
+lambda2: 5.022324265415
+graph6: JqtlZRVVtV_
+
+(11,36)
+lambda2: 5.232587586616
+graph6: JqtlzRVVtV_
+
+(11,37)
+lambda2: 5.457176934672
+graph6: JutlzRVVtV_
+
+(11,38)
+lambda2: 5.457176934672
+graph6: JutlzR^VtV_
+
+(11,39)
+lambda2: 5.634700134832
+graph6: Jutlzr^VtV_
+
+(11,40)
+lambda2: 6.123560530034
+graph6: J}tlzr^VtV_
+
+(11,41)
+lambda2: 6.381966011250
+graph6: J}tlzr^Vtv_
+
+(11,42)
+lambda2: 6.417564397500
+graph6: J}tlzr^Vt~_
+
+(11,43)
+lambda2: 6.736922589687
+graph6: J}vlzr^Vt~_
+
+(11,44)
+lambda2: 6.766790456942
+graph6: J}v|zr^Vt~_
+
+(11,45)
+lambda2: 7.381966011250
+graph6: J}v|zr^^t~_
+
+(11,46)
+lambda2: 8.000000000000
+graph6: J~v|zr^^t~_
+
+(11,47)
+lambda2: 8.000000000000
+graph6: J~v|zr~^t~_
+
+(11,48)
+lambda2: 8.000000000000
+graph6: J~v|zz~^t~_
+
+(11,49)
+lambda2: 8.000000000000
+graph6: J~v|zz~^|~_
+
+(11,50)
+lambda2: 8.000000000000
+graph6: J~v|zz~~|~_
+
+(11,51)
+lambda2: 9.000000000000
+graph6: J~v~zz~~|~_
+
+(11,52)
+lambda2: 9.000000000000
+graph6: J~~~zz~~|~_
+
+(11,53)
+lambda2: 9.000000000000
+graph6: J~~~z~~~|~_
+
+(11,54)
+lambda2: 9.000000000000
+graph6: J~~~~~~~|~_
+

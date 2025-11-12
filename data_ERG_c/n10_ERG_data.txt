@@ -1,0 +1,144 @@
+(10,9)
+lambda2: 0.097886967410
+graph6: IoA?_ODCG
+
+(10,10)
+lambda2: 0.381966011250
+graph6: IoA?_ODCW
+
+(10,11)
+lambda2: 0.381966011250
+graph6: Ioa?_ODCW
+
+(10,12)
+lambda2: 0.697224362268
+graph6: Ioa?_QDCW
+
+(10,13)
+lambda2: 1.097886967410
+graph6: Ioa?oQDCW
+
+(10,14)
+lambda2: 1.139194146888
+graph6: Ioa?oQTCW
+
+(10,15)
+lambda2: 1.381966011250
+graph6: IoaAoQTCW
+
+(10,16)
+lambda2: 1.618071365376
+graph6: IoaApQTCW
+
+(10,17)
+lambda2: 1.683734542173
+graph6: IoaQpQTCW
+
+(10,18)
+lambda2: 2.000000000000
+graph6: IoaQpUTCW
+
+(10,19)
+lambda2: 2.324869129433
+graph6: IoqQpUTCW
+
+(10,20)
+lambda2: 2.324869129433
+graph6: IoqQpUtCW
+
+(10,21)
+lambda2: 2.604956540788
+graph6: IorQpUtCW
+
+(10,22)
+lambda2: 3.000000000000
+graph6: IqrQpUtCW
+
+(10,23)
+lambda2: 3.031330873311
+graph6: IqrRpUtCW
+
+(10,24)
+lambda2: 3.267949192431
+graph6: IqrRpUtEW
+
+(10,25)
+lambda2: 3.606368090856
+graph6: IqrRpU|EW
+
+(10,26)
+lambda2: 4.000000000000
+graph6: IqrRpU|MW
+
+(10,27)
+lambda2: 5.000000000000
+graph6: IqrRxU|MW
+
+(10,28)
+lambda2: 5.000000000000
+graph6: IqrVxU|MW
+
+(10,29)
+lambda2: 5.000000000000
+graph6: IyrVxU|MW
+
+(10,30)
+lambda2: 5.000000000000
+graph6: Iyr^xU|MW
+
+(10,31)
+lambda2: 5.000000000000
+graph6: Iyz^xU|MW
+
+(10,32)
+lambda2: 5.000000000000
+graph6: Iyz^xu|MW
+
+(10,33)
+lambda2: 5.381966011250
+graph6: Iyz^xu|mW
+
+(10,34)
+lambda2: 5.381966011250
+graph6: Iyz^xu|nW
+
+(10,35)
+lambda2: 6.381966011250
+graph6: Iyz^zu|nW
+
+(10,36)
+lambda2: 6.381966011250
+graph6: Iyz^zv|nW
+
+(10,37)
+lambda2: 6.381966011250
+graph6: Iyz^zv|~W
+
+(10,38)
+lambda2: 6.381966011250
+graph6: Izz^zv|~W
+
+(10,39)
+lambda2: 7.000000000000
+graph6: Iz~^zv|~W
+
+(10,40)
+lambda2: 7.000000000000
+graph6: I~~^zv|~W
+
+(10,41)
+lambda2: 8.000000000000
+graph6: I~~^zv|~w
+
+(10,42)
+lambda2: 8.000000000000
+graph6: I~~^z~|~w
+
+(10,43)
+lambda2: 8.000000000000
+graph6: I~~^z~~~w
+
+(10,44)
+lambda2: 8.000000000000
+graph6: I~~^~~~~w
+

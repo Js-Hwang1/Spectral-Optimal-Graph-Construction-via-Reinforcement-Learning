@@ -1,0 +1,480 @@
+(17,16)
+lambda2: 0.034053800632
+graph6: Po?@??G?A??OA?C??A?_OOaS
+
+(17,17)
+lambda2: 0.135055541191
+graph6: Po?@??G?A??OA?C??E?_OOaS
+
+(17,18)
+lambda2: 0.135055541191
+graph6: Po?@??G?A??OE?C??E?_OOaS
+
+(17,19)
+lambda2: 0.326775878787
+graph6: Po?@??G?AA?OE?C??E?_OOaS
+
+(17,20)
+lambda2: 0.398353271213
+graph6: Po?P??G?AA?OE?C??E?_OOaS
+
+(17,21)
+lambda2: 0.493454224508
+graph6: Po?P??G?AA?OE?D??E?_OOaS
+
+(17,22)
+lambda2: 0.524045101132
+graph6: Po?P??G?AA?OE?D??EG_OOaS
+
+(17,23)
+lambda2: 0.682595487692
+graph6: Po?P??G?AA?OE?D??EG_POaS
+
+(17,24)
+lambda2: 0.710535102056
+graph6: Po?P??K?AA?OE?D??EG_POaS
+
+(17,25)
+lambda2: 0.766051966460
+graph6: Po?P??K?AA?OE?D?@EG_POaS
+
+(17,26)
+lambda2: 1.021300638173
+graph6: Po?PC?K?AA?OE?D?@EG_POaS
+
+(17,27)
+lambda2: 1.115966067324
+graph6: Po?PC?K?AQ?OE?D?@EG_POaS
+
+(17,28)
+lambda2: 1.225817044362
+graph6: Po?PC?KGAQ?OE?D?@EG_POaS
+
+(17,29)
+lambda2: 1.425675635144
+graph6: Po?PC?KGAQ?OE?DA@EG_POaS
+
+(17,30)
+lambda2: 1.515047288586
+graph6: Po?PC?KGAQ?PE?DA@EG_POaS
+
+(17,31)
+lambda2: 1.613913114988
+graph6: Po?PC@KGAQ?PE?DA@EG_POaS
+
+(17,32)
+lambda2: 1.624881928052
+graph6: Po?PC@KGAQ?PE?LA@EG_POaS
+
+(17,33)
+lambda2: 1.796458862674
+graph6: PoAPC@KGAQ?PE?LA@EG_POaS
+
+(17,34)
+lambda2: 1.813501236015
+graph6: PoAPC@KGAQ?PE?LA@EGcPOaS
+
+(17,35)
+lambda2: 2.075475821061
+graph6: PoAPD@KGAQ?PE?LA@EGcPOaS
+
+(17,36)
+lambda2: 2.131500302814
+graph6: PoAPD@KGAQ?PE@LA@EGcPOaS
+
+(17,37)
+lambda2: 2.150318530454
+graph6: PoAPD@KGAQ?PU@LA@EGcPOaS
+
+(17,38)
+lambda2: 2.270881946074
+graph6: PoAPD@KGAQ?PU@LA@EGcPPaS
+
+(17,39)
+lambda2: 2.329470576010
+graph6: PoAPD@LGAQ?PU@LA@EGcPPaS
+
+(17,40)
+lambda2: 2.670720508085
+graph6: PoAPD@LGAQ?PU@LA@EIcPPaS
+
+(17,41)
+lambda2: 2.725521890410
+graph6: PoAPD@LGAQ?PU@La@EIcPPaS
+
+(17,42)
+lambda2: 2.779941557480
+graph6: PoAPD@LGAR?PU@La@EIcPPaS
+
+(17,43)
+lambda2: 2.899304604803
+graph6: PoQPD@LGAR?PU@La@EIcPPaS
+
+(17,44)
+lambda2: 3.058149491833
+graph6: PoQPD@LGAR?PU@La@EIcpPaS
+
+(17,45)
+lambda2: 3.194162891085
+graph6: PoQPD@LGAR?PU@La@EIcpPiS
+
+(17,46)
+lambda2: 3.233617555151
+graph6: PoQPD@LGAROPU@La@EIcpPiS
+
+(17,47)
+lambda2: 3.366296806326
+graph6: PpQPD@LGAROPU@La@EIcpPiS
+
+(17,48)
+lambda2: 3.606921037760
+graph6: PpQPD@LHAROPU@La@EIcpPiS
+
+(17,49)
+lambda2: 3.692516567616
+graph6: PpQPd@LHAROPU@La@EIcpPiS
+
+(17,50)
+lambda2: 3.730949331426
+graph6: PpQPd@LHAROPUDLa@EIcpPiS
+
+(17,51)
+lambda2: 3.761255975676
+graph6: PpQPd@LHAROPUDLaDEIcpPiS
+
+(17,52)
+lambda2: 3.965897334095
+graph6: PpQPd@LHAROPUDLaTEIcpPiS
+
+(17,53)
+lambda2: 4.137401615850
+graph6: PpQPd@LHAROPUDLiTEIcpPiS
+
+(17,54)
+lambda2: 4.239325184701
+graph6: PpQPt@LHAROPUDLiTEIcpPiS
+
+(17,55)
+lambda2: 4.446081511970
+graph6: PpQPt@LHAVOPUDLiTEIcpPiS
+
+(17,56)
+lambda2: 4.511114848681
+graph6: PpQTt@LHAVOPUDLiTEIcpPiS
+
+(17,57)
+lambda2: 4.689194493858
+graph6: PpQTt@LHAVOPUDLiTEIcpXiS
+
+(17,58)
+lambda2: 4.789194223528
+graph6: PpQTt@LHQVOPUDLiTEIcpXiS
+
+(17,59)
+lambda2: 4.909503881499
+graph6: PpQTt@LHQVOPUDLiTEIepXiS
+
+(17,60)
+lambda2: 5.099998735859
+graph6: PpQTt@LHQVOTUDLiTEIepXiS
+
+(17,61)
+lambda2: 5.102557102731
+graph6: PpQTt@LHQVOTUDLiTUIepXiS
+
+(17,62)
+lambda2: 5.284760585069
+graph6: PpQTt@LHQVOTUdLiTUIepXiS
+
+(17,63)
+lambda2: 5.380334713904
+graph6: PpQTt@\HQVOTUdLiTUIepXiS
+
+(17,64)
+lambda2: 5.524181243042
+graph6: PpQTtD\HQVOTUdLiTUIepXiS
+
+(17,65)
+lambda2: 5.594863544483
+graph6: PpQTtD\HQVOTUdLiTUImpXiS
+
+(17,66)
+lambda2: 5.731846106354
+graph6: PpQTtD\HQVOVUdLiTUImpXiS
+
+(17,67)
+lambda2: 5.856169688477
+graph6: PpQTtD\HQVOVUdLjTUImpXiS
+
+(17,68)
+lambda2: 5.856171381676
+graph6: PpQTtD\HQVSVUdLjTUImpXiS
+
+(17,69)
+lambda2: 5.883459099344
+graph6: PpRTtD\HQVSVUdLjTUImpXiS
+
+(17,70)
+lambda2: 5.923793515852
+graph6: PpRTtD\XQVSVUdLjTUImpXiS
+
+(17,71)
+lambda2: 6.271755402517
+graph6: PpRTtD\XQVSVUdLzTUImpXiS
+
+(17,72)
+lambda2: 6.494212371850
+graph6: PpRTtD\XQVSVUdLzTUImtXiS
+
+(17,73)
+lambda2: 6.958215600198
+graph6: PpRTtD\XQVSVUdlzTUImtXiS
+
+(17,74)
+lambda2: 7.000988291739
+graph6: PpRTtD|XQVSVUdlzTUImtXiS
+
+(17,75)
+lambda2: 7.051019499660
+graph6: PpR\tD|XQVSVUdlzTUImtXiS
+
+(17,76)
+lambda2: 7.149899380355
+graph6: PpR\tD|XQVSvUdlzTUImtXiS
+
+(17,77)
+lambda2: 7.340965989897
+graph6: PpR\tD|XQVSvUdnzTUImtXiS
+
+(17,78)
+lambda2: 7.341138860233
+graph6: PpV\tD|XQVSvUdnzTUImtXiS
+
+(17,79)
+lambda2: 7.492913712134
+graph6: PpV\tD|XQVSvUfnzTUImtXiS
+
+(17,80)
+lambda2: 7.524396321381
+graph6: PpV\tD|XQVSvUfnzTUImtXis
+
+(17,81)
+lambda2: 7.802252065969
+graph6: PpV\tD|XQVSvUfnzTUImtZis
+
+(17,82)
+lambda2: 7.827934919609
+graph6: PpV\tD|XQvSvUfnzTUImtZis
+
+(17,83)
+lambda2: 7.854878762126
+graph6: PpV\tD|XQvS~UfnzTUImtZis
+
+(17,84)
+lambda2: 8.006948577725
+graph6: PpV\vD|XQvS~UfnzTUImtZis
+
+(17,85)
+lambda2: 8.027839771234
+graph6: PpV\vD|XqvS~UfnzTUImtZis
+
+(17,86)
+lambda2: 8.056287915469
+graph6: PpV\vD|XqvS~UnnzTUImtZis
+
+(17,87)
+lambda2: 8.240576361506
+graph6: PpV\~D|XqvS~UnnzTUImtZis
+
+(17,88)
+lambda2: 8.471177197686
+graph6: PpV\~D|XqvS~UnnzVUImtZis
+
+(17,89)
+lambda2: 8.489529591836
+graph6: PpV\~D|Xq~S~UnnzVUImtZis
+
+(17,90)
+lambda2: 8.714653223625
+graph6: PtV\~D|Xq~S~UnnzVUImtZis
+
+(17,91)
+lambda2: 8.807452455619
+graph6: PtV\~D|xq~S~UnnzVUImtZis
+
+(17,92)
+lambda2: 9.001949891279
+graph6: PtV\~D|xq~S~UnnzVUImtZjs
+
+(17,93)
+lambda2: 9.130655427448
+graph6: PtV\~D|xq~S~UnnzVUImtZj{
+
+(17,94)
+lambda2: 9.426476213705
+graph6: PtV\~D|zq~S~UnnzVUImtZj{
+
+(17,95)
+lambda2: 9.594098925510
+graph6: PtV\~D|zq~S~UnnzVUI}tZj{
+
+(17,96)
+lambda2: 9.741041137373
+graph6: P|V\~D|zq~S~UnnzVUI}tZj{
+
+(17,97)
+lambda2: 9.824582994176
+graph6: P|V\~D|zq~S~UnnzVuI}tZj{
+
+(17,98)
+lambda2: 9.924031905452
+graph6: P|V\~D|zq~S~UnnzvuI}tZj{
+
+(17,99)
+lambda2: 9.925686877176
+graph6: P|V\~D|zq~U~UnnzvuI}tZj{
+
+(17,100)
+lambda2: 10.355224321468
+graph6: P|V\~d|zq~U~UnnzvuI}tZj{
+
+(17,101)
+lambda2: 10.355224321468
+graph6: P|V\~d|zq~U~UnnzvuY}tZj{
+
+(17,102)
+lambda2: 10.532195059084
+graph6: P|V\~d|zq~]~UnnzvuY}tZj{
+
+(17,103)
+lambda2: 10.607983003882
+graph6: P|V\~d|zq~]~Unnzvu]}tZj{
+
+(17,104)
+lambda2: 10.905623943765
+graph6: P|V\~d|zy~]~Unnzvu]}tZj{
+
+(17,105)
+lambda2: 10.977623595368
+graph6: P|V|~d|zy~]~Unnzvu]}tZj{
+
+(17,106)
+lambda2: 11.000000000000
+graph6: P|V|~d|zy~]~]nnzvu]}tZj{
+
+(17,107)
+lambda2: 11.221142875000
+graph6: P|V|~d|zy~]~]nnzvu]}t^j{
+
+(17,108)
+lambda2: 11.623524516356
+graph6: P|V|~l|zy~]~]nnzvu]}t^j{
+
+(17,109)
+lambda2: 11.623524516356
+graph6: P|V|~l|zy~]~]nnz~u]}t^j{
+
+(17,110)
+lambda2: 11.763932022500
+graph6: P|V|~l~zy~]~]nnz~u]}t^j{
+
+(17,111)
+lambda2: 11.969678152815
+graph6: P|V|~l~zy~]~]nnz~u]}v^j{
+
+(17,112)
+lambda2: 11.969678152815
+graph6: P|V|~l~zy~]~]~nz~u]}v^j{
+
+(17,113)
+lambda2: 12.000000000000
+graph6: P|V|~l~zy~]~]~nz~u}}v^j{
+
+(17,114)
+lambda2: 12.358813523807
+graph6: P|V|~l~zy~]~]~nz~}}}v^j{
+
+(17,115)
+lambda2: 12.358813523807
+graph6: P~V|~l~zy~]~]~nz~}}}v^j{
+
+(17,116)
+lambda2: 12.657076917223
+graph6: P~V|~l~zy~]~]~nz~}}}~^j{
+
+(17,117)
+lambda2: 12.657076917223
+graph6: P~V|~l~zy~}~]~nz~}}}~^j{
+
+(17,118)
+lambda2: 12.657076917223
+graph6: P~V|~l~zy~~~]~nz~}}}~^j{
+
+(17,119)
+lambda2: 12.829913513374
+graph6: P~V|~l~zy~~~]~nz~}}}~^n{
+
+(17,120)
+lambda2: 13.000000000000
+graph6: P~V|~n~zy~~~]~nz~}}}~^n{
+
+(17,121)
+lambda2: 13.381966011250
+graph6: P~V|~n~z}~~~]~nz~}}}~^n{
+
+(17,122)
+lambda2: 13.381966011250
+graph6: P~^|~n~z}~~~]~nz~}}}~^n{
+
+(17,123)
+lambda2: 13.585786437627
+graph6: P~^|~n~z}~~~]~~z~}}}~^n{
+
+(17,124)
+lambda2: 14.000000000000
+graph6: P~^|~n~z}~~~]~~~~}}}~^n{
+
+(17,125)
+lambda2: 14.000000000000
+graph6: P~^|~~~z}~~~]~~~~}}}~^n{
+
+(17,126)
+lambda2: 14.000000000000
+graph6: P~^|~~~z}~~~]~~~~}~}~^n{
+
+(17,127)
+lambda2: 14.000000000000
+graph6: P~^|~~~z}~~~^~~~~}~}~^n{
+
+(17,128)
+lambda2: 14.000000000000
+graph6: P~^|~~~~}~~~^~~~~}~}~^n{
+
+(17,129)
+lambda2: 15.000000000000
+graph6: P~^|~~~~}~~~^~~~~~~}~^n{
+
+(17,130)
+lambda2: 15.000000000000
+graph6: P~^|~~~~}~~~^~~~~~~}~~n{
+
+(17,131)
+lambda2: 15.000000000000
+graph6: P~^|~~~~}~~~^~~~~~~}~~~{
+
+(17,132)
+lambda2: 15.000000000000
+graph6: P~^|~~~~}~~~~~~~~~~}~~~{
+
+(17,133)
+lambda2: 15.000000000000
+graph6: P~^|~~~~~~~~~~~~~~~}~~~{
+
+(17,134)
+lambda2: 15.000000000000
+graph6: P~~|~~~~~~~~~~~~~~~}~~~{
+
+(17,135)
+lambda2: 15.000000000000
+graph6: P~~|~~~~~~~~~~~~~~~~~~~{
+

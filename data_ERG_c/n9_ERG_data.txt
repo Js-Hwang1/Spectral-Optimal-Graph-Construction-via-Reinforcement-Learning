@@ -1,0 +1,112 @@
+(9,8)
+lambda2: 0.120614758428
+graph6: HoCAA@c
+
+(9,9)
+lambda2: 0.467911113762
+graph6: HoCAA@d
+
+(9,10)
+lambda2: 0.467911113762
+graph6: HocAA@d
+
+(9,11)
+lambda2: 0.873242940383
+graph6: HocAE@d
+
+(9,12)
+lambda2: 1.152240934977
+graph6: HocBE@d
+
+(9,13)
+lambda2: 1.311368187111
+graph6: HocbE@d
+
+(9,14)
+lambda2: 1.621456893697
+graph6: HocbE@l
+
+(9,15)
+lambda2: 2.000000000000
+graph6: HocbEDl
+
+(9,16)
+lambda2: 2.000000000000
+graph6: HocjEDl
+
+(9,17)
+lambda2: 2.354248688935
+graph6: HocjEdl
+
+(9,18)
+lambda2: 2.436778650573
+graph6: HscjEdl
+
+(9,19)
+lambda2: 3.000000000000
+graph6: HskjEdl
+
+(9,20)
+lambda2: 3.134692935031
+graph6: HskjUdl
+
+(9,21)
+lambda2: 4.000000000000
+graph6: HukjUdl
+
+(9,22)
+lambda2: 4.000000000000
+graph6: HukjUtl
+
+(9,23)
+lambda2: 4.000000000000
+graph6: HukjVtl
+
+(9,24)
+lambda2: 4.381966011250
+graph6: HvkjVtl
+
+(9,25)
+lambda2: 5.000000000000
+graph6: Hvkj^tl
+
+(9,26)
+lambda2: 5.000000000000
+graph6: Hvkj^vl
+
+(9,27)
+lambda2: 5.000000000000
+graph6: Hvlj^vl
+
+(9,28)
+lambda2: 5.381966011250
+graph6: Hvlj^~l
+
+(9,29)
+lambda2: 5.381966011250
+graph6: Hvlj~~l
+
+(9,30)
+lambda2: 5.585786437627
+graph6: Hv|j~~l
+
+(9,31)
+lambda2: 6.000000000000
+graph6: Hv|z~~l
+
+(9,32)
+lambda2: 7.000000000000
+graph6: H~|z~~l
+
+(9,33)
+lambda2: 7.000000000000
+graph6: H~~z~~l
+
+(9,34)
+lambda2: 7.000000000000
+graph6: H~~~~~l
+
+(9,35)
+lambda2: 7.000000000000
+graph6: H~~~~~|
+
