@@ -25,3 +25,4 @@ Try:
     for n in range(8,33):
         for k in range(3,n//2):
             test_cases.append( (n,k) )
+
