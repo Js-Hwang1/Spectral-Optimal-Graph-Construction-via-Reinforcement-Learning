@@ -4,7 +4,7 @@ This repository studies the following combinatorial design problem: among all si
 
 **Problem (Maximal Algebraic Connectivity at fixed (n, m)).**
 
-- **Graphs:** We consider simple, undirected, unweighted graphs $G=(V,E)$ with $\vertV\vert=n$ and $\vertE\vert=m$. No self-loops or multi-edges are allowed.
+- **Graphs:** We consider simple, undirected, unweighted graphs $G=(V,E)$ with $\vert V\vert=n$ and $\vert E\vert=m$. No self-loops or multi-edges are allowed.
 - **Adjacency and Laplacian:** Let $A\in\{0,1\}^{n\times n}$ be the symmetric adjacency matrix with zero diagonal, and $D=\mathrm{diag}(A\mathbf{1})$ the diagonal degree matrix. The (combinatorial) graph Laplacian is $L(G)=D-A\in\mathbb{R}^{n\times n}$.
 - **Spectrum:** Denote the eigenvalues of $L(G)$ in nondecreasing order by $0=\lambda_1(L(G))\leq\lambda_2(L(G))\leq\cdots\leq\lambda_n(L(G))$. The quantity $\lambda_2(L(G))$ is the algebraic connectivity (Fiedler value) of $G$, and $\lambda_2(L(G))>0$ iff $G$ is connected.
 
