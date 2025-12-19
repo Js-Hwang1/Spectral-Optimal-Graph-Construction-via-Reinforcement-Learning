@@ -17,13 +17,11 @@ from matplotlib.lines import Line2D
 
 DATA_DIR = "data"
 
-# SW rho configurations with colors
+# SW rho configurations with colors (excluding 0.0 ring and 1.0 pure random)
 SW_CONFIGS = [
-    ("r0",   0.00, '#2ca02c'),   # Green
     ("r25",  0.25, '#9467bd'),   # Purple
     ("r50",  0.50, '#8c564b'),   # Brown
     ("r75",  0.75, '#e377c2'),   # Pink
-    ("r100", 1.00, '#7f7f7f'),   # Gray
 ]
 
 
@@ -65,7 +63,8 @@ def main():
         n_values = []
         if os.path.exists(DATA_DIR):
             for f in os.listdir(DATA_DIR):
-                if f.startswith("OURS_") and f.endswith(".csv"):
+                # Match OURS_{N}.csv but not OURS_TEST_{N}.csv
+                if f.startswith("OURS_") and f.endswith(".csv") and not f.startswith("OURS_TEST_"):
                     n = int(f.replace("OURS_", "").replace(".csv", ""))
                     if n not in n_values:
                         n_values.append(n)
@@ -131,7 +130,7 @@ def main():
         valid_idx = er_scores > 0
         if np.any(valid_idx):
             pct = np.mean(100 * ours_scores[valid_idx] / er_scores[valid_idx])
-            print(f"  N={n}: Avg {pct:.1f}% of ER")
+            print(f"  N={n}: OURS Avg {pct:.1f}% of ER")
 
     if not results:
         print("Error: No valid data to plot.")
@@ -164,7 +163,7 @@ def main():
         ax.plot(m_vals, data['er'], color=C_ER, linewidth=1.5, linestyle='-', zorder=2)
         ax.plot(m_vals, data['fv'], color=C_FV, linewidth=1.5, linestyle='--', zorder=2)
 
-        # Ours
+        # Ours algorithm
         ax.plot(m_vals, data['ours'], color=C_OURS, linewidth=2, zorder=3)
 
         # Styling
@@ -202,7 +201,7 @@ def main():
     # Create legends
     leg1 = fig.legend(handles=legend_row1, loc='upper center', ncol=3, fontsize=11,
                       framealpha=0.9, bbox_to_anchor=(0.5, 1.06))
-    leg2 = fig.legend(handles=legend_row2, loc='upper center', ncol=5, fontsize=10,
+    leg2 = fig.legend(handles=legend_row2, loc='upper center', ncol=3, fontsize=10,
                       framealpha=0.9, bbox_to_anchor=(0.5, 1.01))
     fig.add_artist(leg1)
 

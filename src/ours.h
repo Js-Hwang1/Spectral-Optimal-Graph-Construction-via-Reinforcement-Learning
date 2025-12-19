@@ -5,11 +5,10 @@
  * For dense graphs (M ≈ N²), this is O(N²).
  *
  * COMPLEXITY GUARANTEE:
- * - Adjacency matrix: O(N²) space, O(1) access
- * - Degree tracking: O(N) array
- * - Min-degree selection: O(1) amortized via bucket queue
- * - Overlap detection: O(1) via fixed-size sampling
- * - Edge selection: O(1) constant probes
+ * - Per-node non-edge lists: O(N²) space, O(1) selection from any node
+ * - Bucket queue: O(1) amortized min-degree lookup
+ * - Sample neighbors: O(1) overlap detection (fixed k=16)
+ * - Edge selection: O(1) via random sampling
  * - Total: O(M) for M edges
  */
 
@@ -22,11 +21,17 @@
 #define ASB_MAX_PROBES   256
 #define ASB_SAMPLE_LIMIT 16   /* Fixed sample size for O(1) overlap detection */
 
+/* Forward declaration for non-edge set (defined in ours.c) */
+typedef struct NonEdgeSet NonEdgeSet;
+
 typedef struct {
     int n;
     AdjMatrix *adj;
     int *degrees;
     int edge_count;
+
+    /* Non-edge set for O(1) edge selection - O(N²) space */
+    NonEdgeSet *nonedges;
 
     /* Bucket queue for O(1) amortized min-degree selection */
     int *bucket_head;   /* bucket_head[d] = first node with degree d, or -1 */
@@ -34,19 +39,10 @@ typedef struct {
     int *bucket_prev;   /* bucket_prev[node] = prev node in same bucket */
     int min_degree;     /* current minimum degree (monotonically increasing) */
 
-    /* Track active nodes */
-    bool *node_active;
-
     /* Sample neighbors for overlap detection */
     int **sample_neighbors;
     int *sample_sizes;
     int sample_limit;
-
-    /* Strides and probes for edge selection */
-    int strides[ASB_MAX_STRIDES];
-    int num_strides;
-    int probes[ASB_MAX_PROBES];
-    int num_probes;
 } AdaptiveSpectralBuilder;
 
 /*

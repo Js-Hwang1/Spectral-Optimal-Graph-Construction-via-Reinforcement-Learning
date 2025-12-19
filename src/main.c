@@ -30,7 +30,7 @@
  * ============================================================================ */
 
 #define MAX_N_VALUES 16
-#define DEFAULT_N_VALUES {32, 64, 96, 128}
+#define DEFAULT_N_VALUES {32, 64, 128, 256}
 #define DEFAULT_NUM_N 4
 #define DATA_DIR "data"
 
@@ -141,6 +141,7 @@ static void save_sw_csv(int n, int rho_idx, SWResult *result) {
     printf("  [SW rho=%.2f] Saved: %s\n", SW_RHOS[rho_idx], path);
 }
 
+
 /* ============================================================================
  * INDIVIDUAL ALGORITHM RUNNERS (for child processes)
  * ============================================================================ */
@@ -232,6 +233,7 @@ static void run_sw(int n, int rho_idx) {
     save_sw_csv(n, rho_idx, result);
     sw_result_free(result);
 }
+
 
 /* ============================================================================
  * TASK EXECUTION
