@@ -119,8 +119,6 @@ help:
 	@echo "  data/ER_{N}.csv       - Effective Resistance scores"
 	@echo "  data/FV_{N}.csv       - Fiedler Vector scores"
 	@echo "  data/OURS_{N}.csv     - Our algorithm scores"
-	@echo "  data/SW_r0_{N}.csv    - Small World (rho=0.00)"
 	@echo "  data/SW_r25_{N}.csv   - Small World (rho=0.25)"
 	@echo "  data/SW_r50_{N}.csv   - Small World (rho=0.50)"
 	@echo "  data/SW_r75_{N}.csv   - Small World (rho=0.75)"
-	@echo "  data/SW_r100_{N}.csv  - Small World (rho=1.00)"

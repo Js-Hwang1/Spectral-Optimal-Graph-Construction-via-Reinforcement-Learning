@@ -14,6 +14,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FuncFormatter
+
+def power_formatter(x, pos):
+    """Format tick labels with powers of 10."""
+    if x == 0:
+        return '0'
+    exp = int(np.floor(np.log10(abs(x))))
+    coef = x / 10**exp
+    if coef == 1:
+        return rf'$10^{exp}$'
+    elif coef == int(coef):
+        return rf'${int(coef)}\times10^{exp}$'
+    else:
+        return rf'${coef:.1f}\times10^{exp}$'
 
 DATA_DIR = "data"
 
@@ -127,6 +141,8 @@ def main():
         }
 
         # Print summary
+        max_m = n * (n - 1) // 2
+        print(f"  N={n}: m range [{m_values[0]}..{m_values[-1]}] (max_m={max_m})")
         valid_idx = er_scores > 0
         if np.any(valid_idx):
             pct = np.mean(100 * ours_scores[valid_idx] / er_scores[valid_idx])
@@ -175,38 +191,28 @@ def main():
         ax.set_facecolor('#fafafa')
         for spine in ax.spines.values():
             spine.set_color('#cccccc')
+        # Use power notation for x-axis tick labels
+        ax.xaxis.set_major_formatter(FuncFormatter(power_formatter))
 
-    # Title
-    fig.suptitle('Algebraic Connectivity Comparison', fontsize=16, fontweight='bold', y=1.12)
-
-    # Two-row legend
-    # Row 1: ER, FV, Ours
-    legend_row1 = [
-        Line2D([0], [0], color=C_ER, linewidth=1.5, linestyle='-',
-               label='Effective Resistance (O(M·N³))'),
-        Line2D([0], [0], color=C_FV, linewidth=1.5, linestyle='--',
-               label='Fiedler Vector (O(M·N³))'),
-        Line2D([0], [0], color=C_OURS, linewidth=2, linestyle='-',
-               label='Ours (O(N²))'),
+    # Single-row legend with complexity annotations
+    legend_handles = [
+        Line2D([0], [0], color=C_ER, linewidth=2, linestyle='-', label=r'ER $O(MN^3)$'),
+        Line2D([0], [0], color=C_FV, linewidth=2, linestyle='--', label=r'FV $O(MN^3)$'),
+        Line2D([0], [0], color=C_OURS, linewidth=2.5, linestyle='-', label=r'Ours $O(N^2)$'),
     ]
-
-    # Row 2: SW variants
-    legend_row2 = []
+    # Add SW variants - each shows rho and complexity
     for name, rho, color in SW_CONFIGS:
-        legend_row2.append(
-            Line2D([0], [0], color=color, linewidth=1, linestyle='-', alpha=0.7,
-                   label=f'SW ρ={rho:.2f}')
+        label = rf'SW $\rho$={rho} $O(N^2)$'
+        legend_handles.append(
+            Line2D([0], [0], color=color, linewidth=1.5, linestyle='-', alpha=0.7, label=label)
         )
 
-    # Create legends
-    leg1 = fig.legend(handles=legend_row1, loc='upper center', ncol=3, fontsize=11,
-                      framealpha=0.9, bbox_to_anchor=(0.5, 1.06))
-    leg2 = fig.legend(handles=legend_row2, loc='upper center', ncol=3, fontsize=10,
-                      framealpha=0.9, bbox_to_anchor=(0.5, 1.01))
-    fig.add_artist(leg1)
+    fig.legend(handles=legend_handles, loc='upper center', ncol=6, fontsize=12,
+               frameon=True, framealpha=0.95, edgecolor='#cccccc',
+               bbox_to_anchor=(0.5, 1.02), columnspacing=1.0, handletextpad=0.5)
 
-    plt.tight_layout()
-    output_file = 'spectral_benchmark_grid.png'
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    output_file = 'figure.png'
     plt.savefig(output_file, dpi=600, bbox_inches='tight', facecolor='white')
     plt.show()
 

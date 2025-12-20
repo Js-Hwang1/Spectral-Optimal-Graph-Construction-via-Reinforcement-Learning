@@ -3,10 +3,10 @@
  *
  * Usage: ./benchmark [N1 N2 N3 ...]
  *
- * Runs ER, FV, OURS, and SW (all rhos) in parallel using fork().
+ * Runs ER, FV, OURS, and SW in parallel using fork().
  * Saves separate CSV files per algorithm in data/:
  *   ER_{N}.csv, FV_{N}.csv, OURS_{N}.csv
- *   SW_r0_{N}.csv, SW_r25_{N}.csv, SW_r50_{N}.csv, SW_r75_{N}.csv, SW_r100_{N}.csv
+ *   SW_r25_{N}.csv, SW_r50_{N}.csv, SW_r75_{N}.csv
  *
  * Skips algorithms whose CSV already exists.
  */
@@ -34,13 +34,13 @@
 #define DEFAULT_NUM_N 4
 #define DATA_DIR "data"
 
-/* SW rho values (0, 0.25, 0.50, 0.75, 1.0) */
-static const double SW_RHOS[] = {0.0, 0.25, 0.50, 0.75, 1.0};
-static const int SW_NUM_RHOS = 5;
-static const char *SW_RHO_NAMES[] = {"r0", "r25", "r50", "r75", "r100"};
+/* SW rho values (excluding 0.0 ring and 1.0 pure random) */
+static const double SW_RHOS[] = {0.25, 0.50, 0.75};
+static const int SW_NUM_RHOS = 3;
+static const char *SW_RHO_NAMES[] = {"r25", "r50", "r75"};
 
-/* Number of algorithm types per N: ER + FV + OURS + 5 SW = 8 */
-#define NUM_ALGO_TYPES 8
+/* Number of algorithm types per N: ER + FV + OURS + 3 SW = 6 */
+#define NUM_ALGO_TYPES 6
 
 /* Worker pool size (number of concurrent processes) */
 #define POOL_SIZE 8
@@ -48,7 +48,7 @@ static const char *SW_RHO_NAMES[] = {"r0", "r25", "r50", "r75", "r100"};
 /* Task definition */
 typedef struct {
     int n;
-    int algo;  /* 0=ER, 1=FV, 2=OURS, 3-7=SW rho 0-4 */
+    int algo;  /* 0=ER, 1=FV, 2=OURS, 3-5=SW rho 0.25/0.50/0.75 */
 } Task;
 
 /* ============================================================================
@@ -194,21 +194,34 @@ static void run_ours(int n) {
     int step = n / 16;
     if (step < 2) step = 2;
 
+    /* Count points, plus one extra for max_m if needed */
     int num_points = 0;
-    for (int m = n; m < max_m; m += step) num_points++;
+    int last_m = -1;
+    for (int m = n - 1; m <= max_m; m += step) {
+        num_points++;
+        last_m = m;
+    }
+    if (last_m < max_m) num_points++;  /* Extra point for complete graph */
 
     int *m_values = malloc((size_t)num_points * sizeof(int));
     double *scores = malloc((size_t)num_points * sizeof(double));
 
     int idx = 0;
-    for (int m = n; m < max_m; m += step) {
+    for (int m = n - 1; m <= max_m; m += step) {
         m_values[idx] = m;
         scores[idx] = ours_score(n, m);
         idx++;
     }
+
+    /* Always include the complete graph */
+    if (m_values[idx - 1] < max_m) {
+        m_values[idx] = max_m;
+        scores[idx] = ours_score(n, max_m);
+        idx++;
+    }
     printf("  [OURS] Done for N=%d\n", n);
 
-    save_ours_csv(n, m_values, scores, num_points);
+    save_ours_csv(n, m_values, scores, idx);
     free(m_values);
     free(scores);
 }

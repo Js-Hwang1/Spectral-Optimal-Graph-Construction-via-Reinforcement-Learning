@@ -61,7 +61,7 @@ double sw_single_score(int n, int m, double rho) {
         }
     }
 
-    /* Rewiring */
+    /* Rewiring - only rewire if we can find a valid replacement */
     if (rho > 0.0) {
         int *edges_u = malloc((size_t)m * sizeof(int));
         int *edges_v = malloc((size_t)m * sizeof(int));
@@ -83,16 +83,22 @@ double sw_single_score(int n, int m, double rho) {
             int u = edges_u[idx];
             int v = edges_v[idx];
 
-            adj_set(adj, u, v, false);
-            adj_set(adj, v, u, false);
-
+            /* Find a valid replacement BEFORE removing the edge */
+            int nu = -1;
             for (int attempt = 0; attempt < 100; attempt++) {
-                int nu = rng_int(n);
-                if (u != nu && !adj_get(adj, u, nu)) {
-                    adj_set(adj, u, nu, true);
-                    adj_set(adj, nu, u, true);
+                int candidate = rng_int(n);
+                if (candidate != u && !adj_get(adj, u, candidate)) {
+                    nu = candidate;
                     break;
                 }
+            }
+
+            /* Only rewire if we found a valid replacement */
+            if (nu >= 0) {
+                adj_set(adj, u, v, false);
+                adj_set(adj, v, u, false);
+                adj_set(adj, u, nu, true);
+                adj_set(adj, nu, u, true);
             }
         }
 
@@ -109,7 +115,8 @@ void sw_run(int n, double rho, SWResult *result, int step) {
     int max_m = n * (n - 1) / 2;
     double scores[SW_NUM_SEEDS];
 
-    for (int m = n; m < max_m; m += step) {
+    int last_m = -1;
+    for (int m = n - 1; m <= max_m; m += step) {
         /* Run multiple seeds */
         for (int seed = 0; seed < SW_NUM_SEEDS; seed++) {
             rng_seed((uint64_t)(seed * 12345 + m * 67890 + (int)(rho * 1000)));
@@ -134,6 +141,26 @@ void sw_run(int n, double rho, SWResult *result, int step) {
 
         result->m_values[result->count] = m;
         result->scores[result->count] = mean;
+        result->count++;
+        last_m = m;
+    }
+
+    /* Always include the complete graph if not already included */
+    if (last_m < max_m) {
+        for (int seed = 0; seed < SW_NUM_SEEDS; seed++) {
+            rng_seed((uint64_t)(seed * 12345 + max_m * 67890 + (int)(rho * 1000)));
+            scores[seed] = sw_single_score(n, max_m, rho);
+        }
+        double sum = 0.0;
+        for (int i = 0; i < SW_NUM_SEEDS; i++) sum += scores[i];
+
+        if (result->count >= result->capacity) {
+            result->capacity *= 2;
+            result->m_values = realloc(result->m_values, (size_t)result->capacity * sizeof(int));
+            result->scores = realloc(result->scores, (size_t)result->capacity * sizeof(double));
+        }
+        result->m_values[result->count] = max_m;
+        result->scores[result->count] = sum / SW_NUM_SEEDS;
         result->count++;
     }
 
