@@ -1,0 +1,16 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:12.8.0-devel-ubuntu24.04
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+        gcc g++ make \
+        libopenblas-dev liblapack-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+%environment
+    export PATH=/usr/local/cuda/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+%labels
+    Author CRL
+    Description CUDA + OpenBLAS + cuSOLVER for CRL training

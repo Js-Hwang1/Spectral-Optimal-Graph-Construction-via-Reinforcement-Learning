@@ -1,0 +1,18 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libopenblas-dev \
+        liblapack-dev \
+        mpich \
+        libmpich-dev \
+        && rm -rf /var/lib/apt/lists/*
+
+%environment
+    export PATH=/usr/bin:$PATH
+
+%labels
+    Author CRL
+    Description MPICH + OpenBLAS for CRL MPI eval

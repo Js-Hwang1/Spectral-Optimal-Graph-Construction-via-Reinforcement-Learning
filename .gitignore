@@ -1,0 +1,8 @@
+paper/ 
+data/
+logs/
+.claude
+bin/
+PoC/
+slurm
+.DS_Store

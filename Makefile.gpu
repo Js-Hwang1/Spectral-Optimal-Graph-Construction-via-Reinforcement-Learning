@@ -1,0 +1,42 @@
+# Makefile.gpu — Build CRL with GPU-accelerated sweep on Linux + CUDA
+#
+# Usage: make -f Makefile.gpu clean && make -f Makefile.gpu
+
+CC = gcc
+NVCC = /usr/local/cuda/bin/nvcc
+CFLAGS = -O3 -Wall -Wextra -std=c11 -fPIC -fopenmp -D_GNU_SOURCE
+NVFLAGS = -O3 -Xcompiler -fPIC
+LDFLAGS = /usr/lib64/libopenblaso.so.0 -lm -lgomp -lcusolver -lcudart -L/usr/local/cuda/lib64 -lstdc++
+
+SRCDIR = src
+BINDIR = bin
+
+.PHONY: all clean
+
+all: $(BINDIR)/crl_test_gpu
+
+$(BINDIR):
+	mkdir -p $(BINDIR)
+
+# GPU sweep object
+$(BINDIR)/sweep_gpu.o: $(SRCDIR)/sweep_gpu.cu $(SRCDIR)/sweep_gpu.h | $(BINDIR)
+	$(NVCC) $(NVFLAGS) -c -o $@ $<
+
+# Main test binary with GPU sweep
+$(BINDIR)/crl_test_gpu: $(SRCDIR)/test.c $(SRCDIR)/crl.c $(SRCDIR)/crl.h $(SRCDIR)/sweep_gpu.h $(BINDIR)/sweep_gpu.o | $(BINDIR)
+	$(CC) $(CFLAGS) -DUSE_GPU_SWEEP -I$(SRCDIR) -o $@ $(SRCDIR)/test.c $(SRCDIR)/crl.c $(BINDIR)/sweep_gpu.o $(LDFLAGS)
+
+# CPU-only fallback
+$(BINDIR)/crl_test_cpu: $(SRCDIR)/test.c $(SRCDIR)/crl.c $(SRCDIR)/crl.h | $(BINDIR)
+	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/test.c $(SRCDIR)/crl.c -lopenblas -lm -lgomp
+
+# MPI eval binary
+$(BINDIR)/crl_eval_mpi: $(SRCDIR)/eval_mpi.c $(SRCDIR)/crl.c $(SRCDIR)/crl.h | $(BINDIR)
+	mpicc $(CFLAGS) -o $@ $(SRCDIR)/eval_mpi.c $(SRCDIR)/crl.c /usr/lib64/libopenblaso.so.0 -lm
+
+# GPU enumeration binary (nauty + cuSOLVER batched eigensolve)
+$(BINDIR)/crl_enum_gpu: $(SRCDIR)/enumerate_gpu.cu | $(BINDIR)
+	$(NVCC) $(NVFLAGS) -o $@ $< -lcusolver -lcudart -L/usr/local/cuda/lib64
+
+clean:
+	rm -rf $(BINDIR)
