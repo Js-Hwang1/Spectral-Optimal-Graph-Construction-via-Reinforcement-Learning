@@ -128,38 +128,42 @@ def train(args):
     # --- Optimizer state: per-node momentum buffers ---
     momentum = torch.zeros_like(node_params)
 
-    # --- LR schedule: cosine decay ---
-    def get_lr(t):
-        return args.lr * 0.5 * (1 + np.cos(np.pi * t / args.rounds))
+    # --- LR schedule: cosine decay over total SGD steps ---
+    total_steps = args.rounds * args.tau
+    step_count = 0
+
+    def get_lr(step):
+        return args.lr * 0.5 * (1 + np.cos(np.pi * step / total_steps))
 
     # --- Training loop ---
     log = []
     t0 = time.time()
-    print(f"\nTraining: {args.rounds} rounds, eval every {args.eval_freq}")
+    print(f"\nTraining: {args.rounds} rounds x tau={args.tau} local steps "
+          f"= {total_steps} total SGD steps")
+    print(f"Eval every {args.eval_freq} rounds")
     print("=" * 70)
 
     for t in range(1, args.rounds + 1):
-        lr = get_lr(t)
+        # 1. tau local SGD steps per node before communicating
+        for _local in range(args.tau):
+            lr = get_lr(step_count)
+            step_count += 1
 
-        # 1. Local SGD step for each node
-        for i in range(args.n):
-            images, labels = get_batch(i)
-            images, labels = images.to(device), labels.to(device)
+            for i in range(args.n):
+                images, labels = get_batch(i)
+                images, labels = images.to(device), labels.to(device)
 
-            # Load node params into model
-            unflatten_params(model, node_params[i])
-            model.train()
+                unflatten_params(model, node_params[i])
+                model.train()
 
-            # Forward + backward
-            outputs = model(images)
-            loss = F.cross_entropy(outputs, labels)
-            model.zero_grad()
-            loss.backward()
+                outputs = model(images)
+                loss = F.cross_entropy(outputs, labels)
+                model.zero_grad()
+                loss.backward()
 
-            # SGD with momentum: v = mu*v + grad; w = w - lr*v
-            grad = torch.cat([p.grad.view(-1) for p in model.parameters()])
-            momentum[i] = args.momentum * momentum[i] + grad
-            node_params[i] -= lr * (momentum[i] + args.weight_decay * node_params[i])
+                grad = torch.cat([p.grad.view(-1) for p in model.parameters()])
+                momentum[i] = args.momentum * momentum[i] + grad
+                node_params[i] -= lr * (momentum[i] + args.weight_decay * node_params[i])
 
         # 2. Gossip averaging: params = W @ params
         node_params = W @ node_params
@@ -181,8 +185,9 @@ def train(args):
             }
             log.append(entry)
 
+            cur_lr = get_lr(step_count - 1)
             print(f"  round {t:5d}/{args.rounds} | acc {acc:.4f} | "
-                  f"lr {lr:.5f} | {rounds_per_sec:.1f} r/s | "
+                  f"lr {cur_lr:.5f} | {rounds_per_sec:.1f} r/s | "
                   f"{elapsed:.0f}s")
 
     # --- Save results ---
@@ -230,6 +235,8 @@ def main():
     # Training
     parser.add_argument("--rounds", type=int, default=2000,
                         help="Total communication rounds")
+    parser.add_argument("--tau", type=int, default=5,
+                        help="Local SGD steps per communication round")
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
