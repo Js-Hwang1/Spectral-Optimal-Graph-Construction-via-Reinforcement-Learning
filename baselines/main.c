@@ -1,7 +1,7 @@
 /*
  * main.c - Algebraic Connectivity Benchmark Driver (Parallel)
  *
- * Usage: ./benchmark [--jobs N] [--db] [N1 N2 N3 ...]
+ * Usage: ./benchmark [--jobs N] [--db] [--ring] [--seed S] [N1 N2 N3 ...]
  *
  * Runs ER, FV, OURS, and SW in parallel using fork().
  * Saves separate CSV files per algorithm in data/:
@@ -12,6 +12,8 @@
  *
  * --jobs N   Number of parallel workers (default: all CPUs)
  * --db       Load results into HuggingFace after completion
+ * --ring     Use ring initialization instead of random spanning tree
+ * --seed S   Set random seed for reproducibility (default: time-based)
  */
 
 #include <stdio.h>
@@ -40,13 +42,18 @@
 static const double SW_RHOS[] = {0.25, 0.50, 0.75};
 static const char *SW_RHO_NAMES[] = {"r25", "r50", "r75"};
 
-/* Number of algorithm types per N: ER + FV + 3 SW = 5 (OURS excluded) */
+/* Number of algorithm types per N: ER + FV + 3 SW = 5 */
 #define NUM_ALGO_TYPES 5
+
+/* Global config passed to child processes via --single */
+static InitType g_init = INIT_TREE;
+static uint64_t g_seed = 0;  /* 0 = time-based */
+static const char *g_exe = "./baselines";
 
 /* Task definition with estimated cost for scheduling */
 typedef struct {
     int n;
-    int algo;       /* 0=ER, 1=FV, 2=OURS, 3-5=SW rho 0.25/0.50/0.75 */
+    int algo;       /* 0=ER, 1=FV, 3-5=SW rho 0.25/0.50/0.75 */
     double cost;    /* estimated relative cost for LPT scheduling */
 } Task;
 
@@ -163,7 +170,7 @@ static void run_er(int n) {
     printf("  [ER] Starting for N=%d...\n", n);
     int max_m = n * (n - 1) / 2;
     ERResult *result = er_result_create(max_m);
-    er_run(n, result);
+    er_run(n, result, g_init);
     save_er_csv(n, result);
     er_result_free(result);
 }
@@ -180,7 +187,7 @@ static void run_fv(int n) {
     printf("  [FV] Starting for N=%d...\n", n);
     int max_m = n * (n - 1) / 2;
     FVResult *result = fv_result_create(max_m);
-    fv_run(n, result);
+    fv_run(n, result, g_init);
     save_fv_csv(n, result);
     fv_result_free(result);
 }
@@ -217,7 +224,10 @@ static void run_task(Task *task) {
     setenv("MKL_NUM_THREADS", "1", 1);
     setenv("VECLIB_MAXIMUM_THREADS", "1", 1);
 
-    rng_seed((uint64_t)time(NULL) ^ (uint64_t)getpid());
+    if (g_seed)
+        rng_seed(g_seed ^ (uint64_t)task->n ^ (uint64_t)task->algo);
+    else
+        rng_seed((uint64_t)time(NULL) ^ (uint64_t)getpid());
 
     switch (task->algo) {
         case 0: run_er(task->n); break;
@@ -278,7 +288,19 @@ static void run_worker_pool(Task *tasks, int num_tasks, int pool_size) {
                 char algo_str[8], n_str[16];
                 snprintf(algo_str, sizeof(algo_str), "%d", tasks[next_task].algo);
                 snprintf(n_str, sizeof(n_str), "%d", tasks[next_task].n);
-                execl("./benchmark", "benchmark", "--single", algo_str, n_str, NULL);
+                char seed_str[32];
+                snprintf(seed_str, sizeof(seed_str), "%llu", (unsigned long long)g_seed);
+                if (g_init == INIT_RING && g_seed)
+                    execl(g_exe, g_exe, "--single", algo_str, n_str,
+                          "--ring", "--seed", seed_str, NULL);
+                else if (g_init == INIT_RING)
+                    execl(g_exe, g_exe, "--single", algo_str, n_str,
+                          "--ring", NULL);
+                else if (g_seed)
+                    execl(g_exe, g_exe, "--single", algo_str, n_str,
+                          "--seed", seed_str, NULL);
+                else
+                    execl(g_exe, g_exe, "--single", algo_str, n_str, NULL);
                 _exit(1); /* exec failed */
             }
             workers[active] = pid;
@@ -328,13 +350,18 @@ int main(int argc, char *argv[]) {
         setenv("MKL_NUM_THREADS", "1", 1);
         setenv("VECLIB_MAXIMUM_THREADS", "1", 1);
         setenv("FLEXIBLAS_NUM_THREADS", "1", 1);
-        rng_seed((uint64_t)time(NULL) ^ (uint64_t)getpid());
+        /* Parse extra flags after --single <algo> <n> */
+        for (int i = 4; i < argc; i++) {
+            if (strcmp(argv[i], "--ring") == 0) g_init = INIT_RING;
+            else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc)
+                g_seed = (uint64_t)atoll(argv[++i]);
+        }
         Task t = {.n = atoi(argv[3]), .algo = atoi(argv[2]), .cost = 0};
         run_task(&t);
         return 0;
     }
 
-    rng_seed((uint64_t)time(NULL));
+    g_exe = argv[0];
 
     /* Parse flags and N values */
     int n_values[MAX_N_VALUES] = DEFAULT_N_VALUES;
@@ -346,6 +373,10 @@ int main(int argc, char *argv[]) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--db") == 0) {
             load_db = 1;
+        } else if (strcmp(argv[i], "--ring") == 0) {
+            g_init = INIT_RING;
+        } else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
+            g_seed = (uint64_t)atoll(argv[++i]);
         } else if ((strcmp(argv[i], "--jobs") == 0 || strcmp(argv[i], "-j") == 0)
                    && i + 1 < argc) {
             num_jobs = atoi(argv[++i]);
@@ -372,6 +403,8 @@ int main(int argc, char *argv[]) {
         printf("%d ", n_values[i]);
     }
     printf("\n");
+    printf("Init: %s\n", g_init == INIT_RING ? "ring" : "random spanning tree");
+    if (g_seed) printf("Seed: %llu\n", (unsigned long long)g_seed);
     if (load_db) printf("HuggingFace load: enabled (--db)\n");
 
     /* Build task list with cost estimates */

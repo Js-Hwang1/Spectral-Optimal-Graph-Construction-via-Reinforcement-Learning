@@ -25,6 +25,18 @@ int adj_edge_count(const AdjMatrix *adj);
 void adj_copy(AdjMatrix *dst, const AdjMatrix *src);
 
 /* ============================================================================
+ * GRAPH INITIALIZATION
+ * ============================================================================ */
+
+typedef enum { INIT_TREE, INIT_RING } InitType;
+
+/* Build a random spanning tree (n-1 edges). Requires rng_seed() first. */
+void build_random_tree(AdjMatrix *adj);
+
+/* Build a ring/cycle graph (n edges). */
+void build_ring(AdjMatrix *adj);
+
+/* ============================================================================
  * EIGENVALUE COMPUTATIONS
  * ============================================================================ */
 

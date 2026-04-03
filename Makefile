@@ -29,7 +29,10 @@ endif
 
 .PHONY: all clean test train
 
-all: $(TARGET) $(BINDIR)/crl_train $(BINDIR)/crl_eval $(BINDIR)/crl_sa $(BINDIR)/crl_v10 $(BINDIR)/crl_ga $(BINDIR)/crl_gnn $(BINDIR)/crl_mlp $(BINDIR)/crl_dqn
+BASEDIR = baselines
+BASE_SRCS = $(BASEDIR)/main.c $(BASEDIR)/common.c $(BASEDIR)/er.c $(BASEDIR)/fv.c $(BASEDIR)/sw.c
+
+all: $(TARGET) $(BINDIR)/crl_train $(BINDIR)/crl_eval $(BINDIR)/crl_sa $(BINDIR)/crl_v10 $(BINDIR)/crl_ga $(BINDIR)/crl_gnn $(BINDIR)/crl_mlp $(BINDIR)/crl_dqn $(BINDIR)/baselines
 
 $(TARGET): $(SRCDIR)/crl.c $(SRCDIR)/crl.h | $(BINDIR)
 	$(CC) $(CFLAGS) $(SHARED_FLAG) -o $@ $(SRCDIR)/crl.c $(LIB_LDFLAGS)
@@ -75,6 +78,9 @@ $(BINDIR)/crl_dqn: $(SRCDIR)/dqn_main.c $(SRCDIR)/crl.c $(SRCDIR)/crl.h | $(BIND
 
 $(BINDIR)/crl_test: $(SRCDIR)/test.c $(SRCDIR)/crl.c $(SRCDIR)/crl.h | $(BINDIR)
 	$(CC) $(CFLAGS) -o $@ $(SRCDIR)/test.c $(SRCDIR)/crl.c $(EXE_LDFLAGS)
+
+$(BINDIR)/baselines: $(BASE_SRCS) $(wildcard $(BASEDIR)/*.h) | $(BINDIR)
+	$(CC) $(CFLAGS) -I$(BASEDIR) -o $@ $(BASE_SRCS) $(EXE_LDFLAGS)
 
 $(BINDIR):
 	mkdir -p $(BINDIR)

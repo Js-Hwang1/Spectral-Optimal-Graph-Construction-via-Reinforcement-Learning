@@ -46,17 +46,16 @@ static void fv_result_add(FVResult *result, int m, double score) {
     result->count++;
 }
 
-void fv_run(int n, FVResult *result) {
+void fv_run(int n, FVResult *result, InitType init) {
     int max_m = n * (n - 1) / 2;
 
-    /* Initialize ring graph */
     AdjMatrix *adj = adj_create(n);
-    for (int i = 0; i < n; i++) {
-        adj_set(adj, i, (i + 1) % n, true);
-        adj_set(adj, (i + 1) % n, i, true);
-    }
+    if (init == INIT_RING)
+        build_ring(adj);
+    else
+        build_random_tree(adj);
 
-    int curr_m = n;
+    int curr_m = adj_edge_count(adj);
     fv_result_add(result, curr_m, compute_algebraic_connectivity(adj));
 
     double *fiedler = malloc((size_t)n * sizeof(double));

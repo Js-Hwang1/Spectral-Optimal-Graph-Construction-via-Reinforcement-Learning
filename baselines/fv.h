@@ -22,8 +22,8 @@ void fv_result_free(FVResult *result);
 
 /*
  * Run the Fiedler Vector greedy algorithm.
- * Starts from a ring graph and greedily adds edges.
+ * init: INIT_TREE (random spanning tree) or INIT_RING (cycle graph).
  */
-void fv_run(int n, FVResult *result);
+void fv_run(int n, FVResult *result, InitType init);
 
 #endif /* FV_H */

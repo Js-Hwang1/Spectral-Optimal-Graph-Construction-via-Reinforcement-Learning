@@ -87,6 +87,43 @@ void adj_copy(AdjMatrix *dst, const AdjMatrix *src) {
 }
 
 /* ============================================================================
+ * GRAPH INITIALIZATION
+ * ============================================================================ */
+
+void build_ring(AdjMatrix *adj) {
+    int n = adj->n;
+    for (int i = 0; i < n; i++) {
+        int j = (i + 1) % n;
+        adj_set(adj, i, j, true);
+        adj_set(adj, j, i, true);
+    }
+}
+
+void build_random_tree(AdjMatrix *adj) {
+    int n = adj->n;
+
+    /* Fisher-Yates shuffle to get a random permutation */
+    int *perm = malloc((size_t)n * sizeof(int));
+    for (int i = 0; i < n; i++) perm[i] = i;
+    for (int i = n - 1; i > 0; i--) {
+        int j = rng_int(i + 1);
+        int tmp = perm[i];
+        perm[i] = perm[j];
+        perm[j] = tmp;
+    }
+
+    /* Connect each node to a random already-in-tree node */
+    for (int i = 1; i < n; i++) {
+        int u = perm[i];
+        int v = perm[rng_int(i)];
+        adj_set(adj, u, v, true);
+        adj_set(adj, v, u, true);
+    }
+
+    free(perm);
+}
+
+/* ============================================================================
  * LAPLACIAN HELPERS
  * ============================================================================ */
 

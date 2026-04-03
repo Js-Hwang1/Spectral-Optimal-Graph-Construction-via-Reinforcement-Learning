@@ -22,8 +22,8 @@ void er_result_free(ERResult *result);
 
 /*
  * Run the Effective Resistance greedy algorithm.
- * Starts from a ring graph and greedily adds edges.
+ * init: INIT_TREE (random spanning tree) or INIT_RING (cycle graph).
  */
-void er_run(int n, ERResult *result);
+void er_run(int n, ERResult *result, InitType init);
 
 #endif /* ER_H */
