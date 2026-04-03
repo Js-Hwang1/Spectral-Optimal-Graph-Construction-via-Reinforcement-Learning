@@ -36,4 +36,9 @@ void sw_run(int n, double rho, SWResult *result, int step);
  */
 double sw_single_score(int n, int m, double rho);
 
+/*
+ * Build a single SW graph for (n, m, rho) and write adjacency into adj_out.
+ */
+void sw_build(int n, int m, double rho, AdjMatrix *adj_out);
+
 #endif /* SW_H */

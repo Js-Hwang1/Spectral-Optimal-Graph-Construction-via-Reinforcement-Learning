@@ -38,17 +38,16 @@ void sw_result_free(SWResult *result) {
     }
 }
 
-double sw_single_score(int n, int m, double rho) {
-    AdjMatrix *adj = adj_create(n);
+void sw_build(int n, int m, double rho, AdjMatrix *adj_out) {
     int max_m = n * (n - 1) / 2;
     if (m > max_m) m = max_m;
 
     /*
      * Build circulant graph hop-by-hop:
-     *   hop 1: edges (i, i+1 mod n)  — the ring          → n edges
-     *   hop 2: edges (i, i+2 mod n)                       → n edges
+     *   hop 1: edges (i, i+1 mod n)  — the ring          -> n edges
+     *   hop 2: edges (i, i+2 mod n)                       -> n edges
      *   ...
-     *   hop h: edges (i, i+h mod n)                       → n edges (or n/2 for h=n/2)
+     *   hop h: edges (i, i+h mod n)                       -> n edges (or n/2 for h=n/2)
      *
      * Fill complete hops first, then add a partial hop to hit exactly m.
      */
@@ -62,9 +61,9 @@ double sw_single_score(int n, int m, double rho) {
         if (curr + hop_edges > m) break;
         for (int i = 0; i < n; i++) {
             int j = (i + hop) % n;
-            if (!adj_get(adj, i, j)) {
-                adj_set(adj, i, j, true);
-                adj_set(adj, j, i, true);
+            if (!adj_get(adj_out, i, j)) {
+                adj_set(adj_out, i, j, true);
+                adj_set(adj_out, j, i, true);
                 curr++;
             }
         }
@@ -75,9 +74,9 @@ double sw_single_score(int n, int m, double rho) {
     if (curr < m && hop <= max_hop) {
         for (int i = 0; i < n && curr < m; i++) {
             int j = (i + hop) % n;
-            if (!adj_get(adj, i, j)) {
-                adj_set(adj, i, j, true);
-                adj_set(adj, j, i, true);
+            if (!adj_get(adj_out, i, j)) {
+                adj_set(adj_out, i, j, true);
+                adj_set(adj_out, j, i, true);
                 curr++;
             }
         }
@@ -94,29 +93,32 @@ double sw_single_score(int n, int m, double rho) {
         for (int h = 1; h <= max_hop; h++) {
             for (int i = 0; i < n; i++) {
                 int j = (i + h) % n;
-                if (!adj_get(adj, i, j)) continue;   /* edge may not exist (partial hop) */
+                if (!adj_get(adj_out, i, j)) continue;
                 if (rng_double() >= rho) continue;
 
-                /* Find a valid replacement: not i, not already neighbor of i */
                 int nv = -1;
                 for (int attempt = 0; attempt < 100; attempt++) {
                     int candidate = rng_int(n);
-                    if (candidate != i && !adj_get(adj, i, candidate)) {
+                    if (candidate != i && !adj_get(adj_out, i, candidate)) {
                         nv = candidate;
                         break;
                     }
                 }
 
                 if (nv >= 0) {
-                    adj_set(adj, i, j, false);
-                    adj_set(adj, j, i, false);
-                    adj_set(adj, i, nv, true);
-                    adj_set(adj, nv, i, true);
+                    adj_set(adj_out, i, j, false);
+                    adj_set(adj_out, j, i, false);
+                    adj_set(adj_out, i, nv, true);
+                    adj_set(adj_out, nv, i, true);
                 }
             }
         }
     }
+}
 
+double sw_single_score(int n, int m, double rho) {
+    AdjMatrix *adj = adj_create(n);
+    sw_build(n, m, rho, adj);
     double score = compute_algebraic_connectivity(adj);
     adj_free(adj);
     return score;

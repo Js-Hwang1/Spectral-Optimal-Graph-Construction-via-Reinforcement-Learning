@@ -99,3 +99,47 @@ void fv_run(int n, FVResult *result, InitType init) {
 
     printf("  FV done for N=%d\n", n);
 }
+
+void fv_run_single(int n, int m, InitType init, AdjMatrix *adj_out) {
+    AdjMatrix *adj = adj_create(n);
+    if (init == INIT_RING)
+        build_ring(adj);
+    else
+        build_random_tree(adj);
+
+    int curr_m = adj_edge_count(adj);
+
+    double *fiedler = malloc((size_t)n * sizeof(double));
+    if (!fiedler) { adj_free(adj); return; }
+
+    while (curr_m < m) {
+        compute_fiedler_vector(adj, fiedler);
+
+        double max_diff_sq = -1.0;
+        int best_u = -1, best_v = -1;
+
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                if (!adj_get(adj, i, j)) {
+                    double diff = fiedler[i] - fiedler[j];
+                    double diff_sq = diff * diff;
+                    if (diff_sq > max_diff_sq) {
+                        max_diff_sq = diff_sq;
+                        best_u = i;
+                        best_v = j;
+                    }
+                }
+            }
+        }
+
+        if (best_u < 0) break;
+
+        adj_set(adj, best_u, best_v, true);
+        adj_set(adj, best_v, best_u, true);
+        curr_m++;
+    }
+
+    free(fiedler);
+    adj_copy(adj_out, adj);
+    adj_free(adj);
+}

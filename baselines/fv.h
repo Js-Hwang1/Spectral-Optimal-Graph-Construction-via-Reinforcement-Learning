@@ -26,4 +26,9 @@ void fv_result_free(FVResult *result);
  */
 void fv_run(int n, FVResult *result, InitType init);
 
+/*
+ * Build a single FV graph for a specific (n, m) and write adjacency into adj_out.
+ */
+void fv_run_single(int n, int m, InitType init, AdjMatrix *adj_out);
+
 #endif /* FV_H */

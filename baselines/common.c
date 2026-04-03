@@ -3,6 +3,7 @@
  */
 
 #include "common.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -84,6 +85,21 @@ int adj_edge_count(const AdjMatrix *adj) {
 
 void adj_copy(AdjMatrix *dst, const AdjMatrix *src) {
     memcpy(dst->data, src->data, (size_t)src->n * src->n * sizeof(bool));
+}
+
+int adj_save_binary(const AdjMatrix *adj, const char *path) {
+    int n = adj->n;
+    FILE *fp = fopen(path, "wb");
+    if (!fp) return -1;
+
+    uint8_t *buf = malloc((size_t)n * n);
+    for (int i = 0; i < n * n; i++)
+        buf[i] = adj->data[i] ? 1 : 0;
+
+    fwrite(buf, 1, (size_t)n * n, fp);
+    free(buf);
+    fclose(fp);
+    return 0;
 }
 
 /* ============================================================================

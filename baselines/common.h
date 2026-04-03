@@ -24,6 +24,9 @@ void adj_set(AdjMatrix *adj, int i, int j, bool val);
 int adj_edge_count(const AdjMatrix *adj);
 void adj_copy(AdjMatrix *dst, const AdjMatrix *src);
 
+/* Save adjacency matrix as raw n*n uint8 binary (row-major) */
+int adj_save_binary(const AdjMatrix *adj, const char *path);
+
 /* ============================================================================
  * GRAPH INITIALIZATION
  * ============================================================================ */

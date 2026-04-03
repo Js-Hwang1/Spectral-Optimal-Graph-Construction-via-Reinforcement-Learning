@@ -1,0 +1,30 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:25.01-py3
+
+# NGC 25.01 base provides:
+#   CUDA 12.8, cuDNN 9.7, NCCL 2.25
+#   PyTorch 2.6 (sm_90 Hopper + sm_120 Blackwell)
+#   Python 3.12, numpy, scipy
+#
+# Target GPUs:
+#   H200 (sm_90, 141GB)
+#   RTX PRO 6000 Blackwell (sm_120, 96GB)
+
+%post
+    # torchvision for CIFAR-10 dataset + transforms
+    pip install --no-cache-dir torchvision==0.21.0
+
+    # matplotlib for eval.py plotting
+    pip install --no-cache-dir matplotlib
+
+    # Clean up
+    rm -rf /root/.cache/pip
+
+%environment
+    export PYTHONUNBUFFERED=1
+    export OMP_NUM_THREADS=1
+    export TORCH_CUDA_ARCH_LIST="9.0;12.0"
+
+%labels
+    Author JsHwang
+    Description DFL benchmark: PyTorch 2.6 + CUDA 12.8 for H200/Blackwell

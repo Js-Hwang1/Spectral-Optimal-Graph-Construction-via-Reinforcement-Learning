@@ -2,16 +2,18 @@
  * main.c - Algebraic Connectivity Benchmark Driver (Parallel)
  *
  * Usage: ./baselines [--w N] [--algo er,fv,sw] [--ring] [--seed S] [--db] [N1 N2 ...]
+ *        ./baselines --config <n> <m> [--algo X] [--seed S] [--w N] [--ring]
  *
  * Runs ER, FV, and SW baselines in parallel using fork()+exec().
  * ER/FV run BASELINE_NUM_SEEDS seeds each, reporting mean ± std.
  * SW runs SW_NUM_SEEDS seeds internally per (n, rho).
  *
- * --w N       Number of parallel workers (default: all CPUs)
- * --algo X    Comma-separated: er, fv, sw (default: all)
- * --ring      Use ring initialization instead of random spanning tree
- * --seed S    Set random seed for reproducibility
- * --db        Load results into HuggingFace after completion
+ * --w N          Number of parallel workers (default: all CPUs)
+ * --algo X       Comma-separated: er, fv, sw (default: all)
+ * --ring         Use ring initialization instead of random spanning tree
+ * --seed S       Set random seed for reproducibility
+ * --db           Load results into HuggingFace after completion
+ * --config N M   Export adjacency matrices for a single (n,m) config
  */
 
 #include <stdio.h>
@@ -27,6 +29,7 @@
 #include "er.h"
 #include "fv.h"
 #include "sw.h"
+#include "rd.h"
 
 /* ============================================================================
  * CONFIGURATION
@@ -51,8 +54,14 @@ static const char *g_exe = "./baselines";
 #define ALGO_ER  (1 << 0)
 #define ALGO_FV  (1 << 1)
 #define ALGO_SW  (1 << 2)
-#define ALGO_ALL (ALGO_ER | ALGO_FV | ALGO_SW)
+#define ALGO_RD  (1 << 3)
+#define ALGO_ALL (ALGO_ER | ALGO_FV | ALGO_SW | ALGO_RD)
 static int g_algo_mask = ALGO_ALL;
+
+/* Config mode: export adjacency matrices for a single (n, m) */
+static int g_config_mode = 0;
+static int g_config_n = 0;
+static int g_config_m = 0;
 
 static int parse_algo(const char *s) {
     int mask = 0;
@@ -60,6 +69,7 @@ static int parse_algo(const char *s) {
         if (strncmp(s, "er", 2) == 0)      { mask |= ALGO_ER; s += 2; }
         else if (strncmp(s, "fv", 2) == 0)  { mask |= ALGO_FV; s += 2; }
         else if (strncmp(s, "sw", 2) == 0)  { mask |= ALGO_SW; s += 2; }
+        else if (strncmp(s, "rd", 2) == 0)  { mask |= ALGO_RD; s += 2; }
         else s++;
         if (*s == ',') s++;
     }
@@ -109,6 +119,7 @@ static const char *algo_label(int algo, int seed_id) {
         case 3: name = "SW_r25"; break;
         case 4: name = "SW_r50"; break;
         case 5: name = "SW_r75"; break;
+        case 6: name = "RD"; break;
         default: name = "???"; break;
     }
     if (seed_id >= 0)
@@ -199,6 +210,69 @@ static void run_sw(int n, int rho_idx) {
 }
 
 /* ============================================================================
+ * ADJACENCY EXPORT RUNNERS (--config mode)
+ * ============================================================================ */
+
+static void run_adj_er(int n, int m, int seed_id) {
+    char path[256];
+    snprintf(path, sizeof(path), "%s/adj_ER_%d_%d_s%d.bin", DATA_DIR, n, m, seed_id);
+
+    uint64_t base = g_seed ? g_seed : 12345ULL;
+    rng_seed(base ^ ((uint64_t)seed_id * 999983ULL) ^ ((uint64_t)n * 1000003ULL));
+
+    AdjMatrix *adj = adj_create(n);
+    er_run_single(n, m, g_init, adj);
+    adj_save_binary(adj, path);
+    adj_free(adj);
+    printf("  [ER s%d] Saved adj: %s\n", seed_id, path);
+}
+
+static void run_adj_fv(int n, int m, int seed_id) {
+    char path[256];
+    snprintf(path, sizeof(path), "%s/adj_FV_%d_%d_s%d.bin", DATA_DIR, n, m, seed_id);
+
+    uint64_t base = g_seed ? g_seed : 12345ULL;
+    rng_seed(base ^ ((uint64_t)seed_id * 999983ULL) ^
+             ((uint64_t)n * 1000003ULL) ^ 777ULL);
+
+    AdjMatrix *adj = adj_create(n);
+    fv_run_single(n, m, g_init, adj);
+    adj_save_binary(adj, path);
+    adj_free(adj);
+    printf("  [FV s%d] Saved adj: %s\n", seed_id, path);
+}
+
+static void run_adj_sw(int n, int m, int rho_idx, int seed_id) {
+    char path[256];
+    snprintf(path, sizeof(path), "%s/adj_SW_%s_%d_%d_s%d.bin",
+             DATA_DIR, SW_RHO_NAMES[rho_idx], n, m, seed_id);
+
+    rng_seed((uint64_t)(seed_id * 12345 + m * 67890 + (int)(SW_RHOS[rho_idx] * 1000)));
+
+    AdjMatrix *adj = adj_create(n);
+    sw_build(n, m, SW_RHOS[rho_idx], adj);
+    adj_save_binary(adj, path);
+    adj_free(adj);
+    printf("  [SW %s s%d] Saved adj: %s\n", SW_RHO_NAMES[rho_idx], seed_id, path);
+}
+
+static void run_adj_rd(int n, int m, int seed_id) {
+    char path[256];
+    snprintf(path, sizeof(path), "%s/adj_RD_%d_%d_s%d.bin", DATA_DIR, n, m, seed_id);
+
+    uint64_t base = g_seed ? g_seed : 12345ULL;
+    rng_seed(base ^ ((uint64_t)seed_id * 999983ULL) ^
+             ((uint64_t)n * 1000003ULL) ^ 555ULL);
+
+    AdjMatrix *adj = adj_create(n);
+    if (rd_build(n, m, adj) == 0) {
+        adj_save_binary(adj, path);
+        printf("  [RD s%d] Saved adj: %s\n", seed_id, path);
+    }
+    adj_free(adj);
+}
+
+/* ============================================================================
  * TASK EXECUTION (child process)
  * ============================================================================ */
 
@@ -208,11 +282,22 @@ static void run_task(Task *task) {
     setenv("MKL_NUM_THREADS", "1", 1);
     setenv("VECLIB_MAXIMUM_THREADS", "1", 1);
 
+    if (g_config_mode) {
+        switch (task->algo) {
+            case 0: run_adj_er(task->n, g_config_m, task->seed_id); break;
+            case 1: run_adj_fv(task->n, g_config_m, task->seed_id); break;
+            case 6: run_adj_rd(task->n, g_config_m, task->seed_id); break;
+            default:
+                run_adj_sw(task->n, g_config_m, task->algo - 3, task->seed_id);
+                break;
+        }
+        return;
+    }
+
     switch (task->algo) {
         case 0: run_er_seed(task->n, task->seed_id); break;
         case 1: run_fv_seed(task->n, task->seed_id); break;
         default:
-            /* SW: seed the RNG for internal seed-loop determinism */
             if (g_seed)
                 rng_seed(g_seed ^ (uint64_t)task->n ^ (uint64_t)task->algo);
             else
@@ -234,6 +319,7 @@ static double estimate_cost(int n, int algo) {
     switch (algo) {
         case 0: return M * N3 * 2.0;                    /* ER: 1 seed */
         case 1: return M * N3;                           /* FV: 1 seed */
+        case 6: return M;                                /* RD: O(M) pairing model */
         default: return M * (double)SW_NUM_SEEDS * N3;   /* SW: all seeds */
     }
 }
@@ -266,7 +352,11 @@ static void run_worker_pool(Task *tasks, int num_tasks, int pool_size) {
                 snprintf(sid_str, sizeof(sid_str), "%d", tasks[next_task].seed_id);
                 snprintf(seed_str, sizeof(seed_str), "%llu", (unsigned long long)g_seed);
 
-                char *args[16];
+                char cfg_n_str[16], cfg_m_str[16];
+                snprintf(cfg_n_str, sizeof(cfg_n_str), "%d", g_config_n);
+                snprintf(cfg_m_str, sizeof(cfg_m_str), "%d", g_config_m);
+
+                char *args[20];
                 int ai = 0;
                 args[ai++] = (char *)g_exe;
                 args[ai++] = "--single";
@@ -276,6 +366,7 @@ static void run_worker_pool(Task *tasks, int num_tasks, int pool_size) {
                 args[ai++] = sid_str;
                 if (g_init == INIT_RING) args[ai++] = "--ring";
                 if (g_seed) { args[ai++] = "--seed"; args[ai++] = seed_str; }
+                if (g_config_mode) { args[ai++] = "--config"; args[ai++] = cfg_n_str; args[ai++] = cfg_m_str; }
                 args[ai] = NULL;
                 execv(g_exe, args);
                 _exit(1);
@@ -398,6 +489,11 @@ int main(int argc, char *argv[]) {
                 g_seed = (uint64_t)atoll(argv[++i]);
             else if (strcmp(argv[i], "--sid") == 0 && i + 1 < argc)
                 sid = atoi(argv[++i]);
+            else if (strcmp(argv[i], "--config") == 0 && i + 2 < argc) {
+                g_config_mode = 1;
+                g_config_n = atoi(argv[++i]);
+                g_config_m = atoi(argv[++i]);
+            }
         }
 
         Task t = {.n = n, .algo = algo, .seed_id = sid, .cost = 0};
@@ -419,6 +515,10 @@ int main(int argc, char *argv[]) {
             load_db = 1;
         } else if (strcmp(argv[i], "--algo") == 0 && i + 1 < argc) {
             g_algo_mask = parse_algo(argv[++i]);
+        } else if (strcmp(argv[i], "--config") == 0 && i + 2 < argc) {
+            g_config_mode = 1;
+            g_config_n = atoi(argv[++i]);
+            g_config_m = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--ring") == 0) {
             g_init = INIT_RING;
         } else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
@@ -437,6 +537,72 @@ int main(int argc, char *argv[]) {
 
     if (num_jobs <= 0) num_jobs = detect_cpus();
 
+    /* ================================================================
+     * CONFIG MODE: export adjacency matrices for a single (n, m)
+     * ================================================================ */
+    if (g_config_mode) {
+        int n = g_config_n, m = g_config_m;
+        printf("Adjacency Export Mode: n=%d, m=%d\n", n, m);
+        printf("Workers: %d", num_jobs);
+        if (num_jobs == detect_cpus()) printf(" (auto)");
+        printf("\nInit: %s\n", g_init == INIT_RING ? "ring" : "random spanning tree");
+        printf("Seeds: %d\n", BASELINE_NUM_SEEDS);
+        if (g_seed) printf("Seed: %llu\n", (unsigned long long)g_seed);
+
+        /* All algos get BASELINE_NUM_SEEDS tasks (SW too, per seed per rho) */
+        int max_tasks = (2 + 3 + 1) * BASELINE_NUM_SEEDS;
+        Task *tasks = malloc((size_t)max_tasks * sizeof(Task));
+        int t = 0;
+
+        if (g_algo_mask & ALGO_ER) {
+            for (int s = 0; s < BASELINE_NUM_SEEDS; s++) {
+                tasks[t++] = (Task){.n = n, .algo = 0, .seed_id = s,
+                                    .cost = estimate_cost(n, 0)};
+            }
+        }
+        if (g_algo_mask & ALGO_FV) {
+            for (int s = 0; s < BASELINE_NUM_SEEDS; s++) {
+                tasks[t++] = (Task){.n = n, .algo = 1, .seed_id = s,
+                                    .cost = estimate_cost(n, 1)};
+            }
+        }
+        if (g_algo_mask & ALGO_SW) {
+            for (int r = 0; r < 3; r++) {
+                for (int s = 0; s < BASELINE_NUM_SEEDS; s++) {
+                    tasks[t++] = (Task){.n = n, .algo = 3 + r, .seed_id = s,
+                                        .cost = estimate_cost(n, 3 + r) / SW_NUM_SEEDS};
+                }
+            }
+        }
+        if (g_algo_mask & ALGO_RD) {
+            int d = rd_check(n, m);
+            if (d >= 0) {
+                printf("  [RD] d-regular with d=%d\n", d);
+                for (int s = 0; s < BASELINE_NUM_SEEDS; s++) {
+                    tasks[t++] = (Task){.n = n, .algo = 6, .seed_id = s,
+                                        .cost = estimate_cost(n, 6)};
+                }
+            } else {
+                printf("  [RD] Skipped: (n=%d, m=%d) is not d-regular-able.\n"
+                       "       Requires 2*m divisible by n, d < n, and n*d even.\n", n, m);
+            }
+        }
+
+        int num_tasks = t;
+        qsort(tasks, (size_t)num_tasks, sizeof(Task), task_cmp_desc);
+        printf("Running %d tasks with %d workers\n", num_tasks, num_jobs);
+        fflush(stdout);
+
+        run_worker_pool(tasks, num_tasks, num_jobs);
+        free(tasks);
+
+        printf("\nAdjacency matrices saved to: %s/\n", DATA_DIR);
+        return 0;
+    }
+
+    /* ================================================================
+     * NORMAL MODE: sweep all N values, compute lambda2 CSVs
+     * ================================================================ */
     printf("Algebraic Connectivity Benchmark\n");
     printf("Workers: %d", num_jobs);
     if (num_jobs == detect_cpus()) printf(" (auto)");

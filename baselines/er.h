@@ -26,4 +26,10 @@ void er_result_free(ERResult *result);
  */
 void er_run(int n, ERResult *result, InitType init);
 
+/*
+ * Build a single ER graph for a specific (n, m) and write adjacency into adj_out.
+ * adj_out must be pre-allocated with adj_create(n).
+ */
+void er_run_single(int n, int m, InitType init, AdjMatrix *adj_out);
+
 #endif /* ER_H */

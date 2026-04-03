@@ -30,7 +30,7 @@ endif
 .PHONY: all clean test train
 
 BASEDIR = baselines
-BASE_SRCS = $(BASEDIR)/main.c $(BASEDIR)/common.c $(BASEDIR)/er.c $(BASEDIR)/fv.c $(BASEDIR)/sw.c
+BASE_SRCS = $(BASEDIR)/main.c $(BASEDIR)/common.c $(BASEDIR)/er.c $(BASEDIR)/fv.c $(BASEDIR)/sw.c $(BASEDIR)/rd.c
 
 all: $(TARGET) $(BINDIR)/crl_train $(BINDIR)/crl_eval $(BINDIR)/crl_sa $(BINDIR)/crl_v10 $(BINDIR)/crl_ga $(BINDIR)/crl_gnn $(BINDIR)/crl_mlp $(BINDIR)/crl_dqn $(BINDIR)/baselines
 
