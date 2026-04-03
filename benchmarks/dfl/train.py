@@ -25,7 +25,7 @@ import torch
 import torch.nn.functional as F
 
 from models import create_model, count_parameters
-from data import (load_cifar10, partition_iid, partition_dirichlet,
+from data import (load_dataset, partition_iid, partition_dirichlet,
                   create_data_loaders, partition_stats)
 from topology import get_topology, TOPOLOGY_NAMES
 
@@ -71,7 +71,7 @@ def train(args):
         torch.cuda.manual_seed(args.seed)
 
     # --- Data ---
-    train_set, test_set = load_cifar10(args.data_dir)
+    train_set, test_set, num_classes = load_dataset(args.dataset, args.data_dir)
     test_loader = torch.utils.data.DataLoader(
         test_set, batch_size=256, shuffle=False, num_workers=2)
 
@@ -83,7 +83,7 @@ def train(args):
                                         seed=args.seed)
         data_label = f"dir{args.alpha}"
 
-    print(f"\nData: {data_label}, {args.n} nodes")
+    print(f"\nData: {args.dataset}, {data_label}, {args.n} nodes")
     partition_stats(train_set, partition)
 
     node_loaders = create_data_loaders(train_set, partition,
@@ -114,7 +114,7 @@ def train(args):
     print(f"  spectral_gap = {meta['spectral_gap']:.6f}")
 
     # --- Model ---
-    model = create_model(device)
+    model = create_model(num_classes=num_classes, device=device)
     P = count_parameters(model)
     print(f"\nModel: ResNet-20, {P:,} parameters ({P * 4 / 1e6:.2f} MB)")
     print(f"Total memory: {args.n} nodes x {P * 4 / 1e6:.2f} MB = "
@@ -205,7 +205,7 @@ def train(args):
         "log": log,
     }
 
-    fname = (f"{args.topo}_n{args.n}_m{args.m}_{data_label}"
+    fname = (f"{args.dataset}_{args.topo}_n{args.n}_m{args.m}_{data_label}"
              f"_s{args.seed}.json")
     path = os.path.join(args.output_dir, fname)
     with open(path, "w") as f:
@@ -227,6 +227,9 @@ def main():
                         help="Topology seed index (default: same as --seed)")
 
     # Data
+    parser.add_argument("--dataset", type=str, default="cifar100",
+                        choices=["cifar10", "cifar100"],
+                        help="Dataset (default: cifar100)")
     parser.add_argument("--alpha", type=float, default=None,
                         help="Dirichlet alpha (None=IID, 0.1=severe non-IID)")
     parser.add_argument("--batch-size", type=int, default=32)

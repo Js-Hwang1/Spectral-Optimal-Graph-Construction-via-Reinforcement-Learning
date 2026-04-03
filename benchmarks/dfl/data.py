@@ -1,5 +1,5 @@
 """
-CIFAR-10 data partitioning for decentralized federated learning.
+CIFAR-10/100 data partitioning for decentralized federated learning.
 
 Supports:
   - IID: Uniform random assignment of samples to nodes.
@@ -16,8 +16,8 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
 
-CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
-CIFAR10_STD = (0.2023, 0.1994, 0.2010)
+CIFAR_MEAN = (0.4914, 0.4822, 0.4465)
+CIFAR_STD = (0.2023, 0.1994, 0.2010)
 
 
 def get_transforms():
@@ -25,22 +25,27 @@ def get_transforms():
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+        transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
     ])
     test_transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+        transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
     ])
     return train_transform, test_transform
 
 
-def load_cifar10(data_dir="./data"):
+def load_dataset(name="cifar100", data_dir="./data"):
+    """Load CIFAR-10 or CIFAR-100. Returns (train_set, test_set, num_classes)."""
     train_transform, test_transform = get_transforms()
-    train_set = datasets.CIFAR10(data_dir, train=True, download=True,
-                                 transform=train_transform)
-    test_set = datasets.CIFAR10(data_dir, train=False, download=True,
-                                transform=test_transform)
-    return train_set, test_set
+    if name == "cifar10":
+        cls = datasets.CIFAR10
+        num_classes = 10
+    else:
+        cls = datasets.CIFAR100
+        num_classes = 100
+    train_set = cls(data_dir, train=True, download=True, transform=train_transform)
+    test_set = cls(data_dir, train=False, download=True, transform=test_transform)
+    return train_set, test_set, num_classes
 
 
 def partition_iid(dataset, n_nodes, seed=0):

@@ -66,8 +66,8 @@ class ResNet20(nn.Module):
         return self.fc(out)
 
 
-def create_model(device="cpu"):
-    model = ResNet20().to(device)
+def create_model(num_classes=10, device="cpu"):
+    model = ResNet20(num_classes=num_classes).to(device)
     return model
 
 
