@@ -10,12 +10,13 @@
 
 #include "common.h"
 
-#define SW_NUM_SEEDS 5
+#define SW_NUM_SEEDS 10
 
 /* Result for a single rho value */
 typedef struct {
     int *m_values;
     double *scores;  /* mean score for each m (averaged over seeds) */
+    double *stds;    /* standard deviation for each m */
     int count;
     int capacity;
     double rho;

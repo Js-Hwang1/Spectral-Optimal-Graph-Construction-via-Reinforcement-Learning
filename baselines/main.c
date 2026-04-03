@@ -1,24 +1,23 @@
 /*
  * main.c - Algebraic Connectivity Benchmark Driver (Parallel)
  *
- * Usage: ./benchmark [--jobs N] [--db] [--ring] [--seed S] [N1 N2 N3 ...]
+ * Usage: ./baselines [--w N] [--algo er,fv,sw] [--ring] [--seed S] [--db] [N1 N2 ...]
  *
- * Runs ER, FV, OURS, and SW in parallel using fork().
- * Saves separate CSV files per algorithm in data/:
- *   ER_{N}.csv, FV_{N}.csv, OURS_{N}.csv
- *   SW_r25_{N}.csv, SW_r50_{N}.csv, SW_r75_{N}.csv
+ * Runs ER, FV, and SW baselines in parallel using fork()+exec().
+ * ER/FV run BASELINE_NUM_SEEDS seeds each, reporting mean ± std.
+ * SW runs SW_NUM_SEEDS seeds internally per (n, rho).
  *
- * Skips algorithms whose CSV already exists.
- *
- * --jobs N   Number of parallel workers (default: all CPUs)
- * --db       Load results into HuggingFace after completion
- * --ring     Use ring initialization instead of random spanning tree
- * --seed S   Set random seed for reproducibility (default: time-based)
+ * --w N       Number of parallel workers (default: all CPUs)
+ * --algo X    Comma-separated: er, fv, sw (default: all)
+ * --ring      Use ring initialization instead of random spanning tree
+ * --seed S    Set random seed for reproducibility
+ * --db        Load results into HuggingFace after completion
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -37,24 +36,42 @@
 #define DEFAULT_N_VALUES {32, 64, 128, 256}
 #define DEFAULT_NUM_N 4
 #define DATA_DIR "data"
+#define BASELINE_NUM_SEEDS 10
 
 /* SW rho values */
 static const double SW_RHOS[] = {0.25, 0.50, 0.75};
 static const char *SW_RHO_NAMES[] = {"r25", "r50", "r75"};
 
-/* Number of algorithm types per N: ER + FV + 3 SW = 5 */
-#define NUM_ALGO_TYPES 5
-
-/* Global config passed to child processes via --single */
+/* Global config */
 static InitType g_init = INIT_TREE;
-static uint64_t g_seed = 0;  /* 0 = time-based */
+static uint64_t g_seed = 0;
 static const char *g_exe = "./baselines";
 
-/* Task definition with estimated cost for scheduling */
+/* Algo selection */
+#define ALGO_ER  (1 << 0)
+#define ALGO_FV  (1 << 1)
+#define ALGO_SW  (1 << 2)
+#define ALGO_ALL (ALGO_ER | ALGO_FV | ALGO_SW)
+static int g_algo_mask = ALGO_ALL;
+
+static int parse_algo(const char *s) {
+    int mask = 0;
+    while (*s) {
+        if (strncmp(s, "er", 2) == 0)      { mask |= ALGO_ER; s += 2; }
+        else if (strncmp(s, "fv", 2) == 0)  { mask |= ALGO_FV; s += 2; }
+        else if (strncmp(s, "sw", 2) == 0)  { mask |= ALGO_SW; s += 2; }
+        else s++;
+        if (*s == ',') s++;
+    }
+    return mask ? mask : ALGO_ALL;
+}
+
+/* Task: (algo, n, seed_id).  seed_id = -1 for SW (handles seeds internally) */
 typedef struct {
     int n;
     int algo;       /* 0=ER, 1=FV, 3-5=SW rho 0.25/0.50/0.75 */
-    double cost;    /* estimated relative cost for LPT scheduling */
+    int seed_id;    /* 0..BASELINE_NUM_SEEDS-1 for ER/FV, -1 for SW */
+    double cost;
 } Task;
 
 /* ============================================================================
@@ -83,113 +100,74 @@ static int task_cmp_desc(const void *a, const void *b) {
     return 0;
 }
 
-static const char *algo_name(int algo) {
+static const char *algo_label(int algo, int seed_id) {
+    static char buf[32];
+    const char *name;
     switch (algo) {
-        case 0: return "ER";
-        case 1: return "FV";
-        case 3: return "SW_r25";
-        case 4: return "SW_r50";
-        case 5: return "SW_r75";
-        default: return "???";
+        case 0: name = "ER"; break;
+        case 1: name = "FV"; break;
+        case 3: name = "SW_r25"; break;
+        case 4: name = "SW_r50"; break;
+        case 5: name = "SW_r75"; break;
+        default: name = "???"; break;
     }
+    if (seed_id >= 0)
+        snprintf(buf, sizeof(buf), "%s[s%d]", name, seed_id);
+    else
+        snprintf(buf, sizeof(buf), "%s", name);
+    return buf;
 }
 
 /* ============================================================================
- * CSV WRITERS
+ * INDIVIDUAL ALGORITHM RUNNERS (called by child processes)
  * ============================================================================ */
 
-static void save_er_csv(int n, ERResult *result) {
+/* ER/FV: write per-seed temp CSV (m,score) */
+static void run_er_seed(int n, int seed_id) {
     char path[256];
-    make_path(path, sizeof(path), "ER", n);
+    snprintf(path, sizeof(path), "%s/.tmp_ER_%d_s%d.csv", DATA_DIR, n, seed_id);
 
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
-        fprintf(stderr, "Error: Cannot write to %s\n", path);
-        return;
-    }
+    /* Seed RNG deterministically per (n, algo, seed_id) */
+    uint64_t base = g_seed ? g_seed : 12345ULL;
+    rng_seed(base ^ ((uint64_t)seed_id * 999983ULL) ^
+             ((uint64_t)n * 1000003ULL));
 
-    fprintf(fp, "m,score\n");
-    for (int i = 0; i < result->count; i++) {
-        fprintf(fp, "%d,%.10f\n", result->m_values[i], result->scores[i]);
-    }
-    fclose(fp);
-    printf("  [ER] Saved: %s\n", path);
-}
-
-static void save_fv_csv(int n, FVResult *result) {
-    char path[256];
-    make_path(path, sizeof(path), "FV", n);
-
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
-        fprintf(stderr, "Error: Cannot write to %s\n", path);
-        return;
-    }
-
-    fprintf(fp, "m,score\n");
-    for (int i = 0; i < result->count; i++) {
-        fprintf(fp, "%d,%.10f\n", result->m_values[i], result->scores[i]);
-    }
-    fclose(fp);
-    printf("  [FV] Saved: %s\n", path);
-}
-
-static void save_sw_csv(int n, int rho_idx, SWResult *result) {
-    char path[256];
-    snprintf(path, sizeof(path), "%s/SW_%s_%d.csv",
-             DATA_DIR, SW_RHO_NAMES[rho_idx], n);
-
-    FILE *fp = fopen(path, "w");
-    if (!fp) {
-        fprintf(stderr, "Error: Cannot write to %s\n", path);
-        return;
-    }
-
-    fprintf(fp, "m,score\n");
-    for (int i = 0; i < result->count; i++) {
-        fprintf(fp, "%d,%.10f\n", result->m_values[i], result->scores[i]);
-    }
-    fclose(fp);
-    printf("  [SW rho=%.2f] Saved: %s\n", SW_RHOS[rho_idx], path);
-}
-
-
-/* ============================================================================
- * INDIVIDUAL ALGORITHM RUNNERS (for child processes)
- * ============================================================================ */
-
-static void run_er(int n) {
-    char path[256];
-    make_path(path, sizeof(path), "ER", n);
-
-    if (file_exists(path)) {
-        printf("  [SKIP] ER_%d.csv already exists\n", n);
-        return;
-    }
-
-    printf("  [ER] Starting for N=%d...\n", n);
     int max_m = n * (n - 1) / 2;
     ERResult *result = er_result_create(max_m);
     er_run(n, result, g_init);
-    save_er_csv(n, result);
+
+    FILE *fp = fopen(path, "w");
+    if (!fp) { fprintf(stderr, "Error: Cannot write %s\n", path); er_result_free(result); return; }
+    fprintf(fp, "m,score\n");
+    for (int i = 0; i < result->count; i++)
+        fprintf(fp, "%d,%.10f\n", result->m_values[i], result->scores[i]);
+    fclose(fp);
+
     er_result_free(result);
+    printf("  [ER s%d] Done n=%d -> %s\n", seed_id, n, path);
 }
 
-static void run_fv(int n) {
+static void run_fv_seed(int n, int seed_id) {
     char path[256];
-    make_path(path, sizeof(path), "FV", n);
+    snprintf(path, sizeof(path), "%s/.tmp_FV_%d_s%d.csv", DATA_DIR, n, seed_id);
 
-    if (file_exists(path)) {
-        printf("  [SKIP] FV_%d.csv already exists\n", n);
-        return;
-    }
+    uint64_t base = g_seed ? g_seed : 12345ULL;
+    rng_seed(base ^ ((uint64_t)seed_id * 999983ULL) ^
+             ((uint64_t)n * 1000003ULL) ^ 777ULL);
 
-    printf("  [FV] Starting for N=%d...\n", n);
     int max_m = n * (n - 1) / 2;
     FVResult *result = fv_result_create(max_m);
     fv_run(n, result, g_init);
-    save_fv_csv(n, result);
+
+    FILE *fp = fopen(path, "w");
+    if (!fp) { fprintf(stderr, "Error: Cannot write %s\n", path); fv_result_free(result); return; }
+    fprintf(fp, "m,score\n");
+    for (int i = 0; i < result->count; i++)
+        fprintf(fp, "%d,%.10f\n", result->m_values[i], result->scores[i]);
+    fclose(fp);
+
     fv_result_free(result);
+    printf("  [FV s%d] Done n=%d -> %s\n", seed_id, n, path);
 }
 
 static void run_sw(int n, int rho_idx) {
@@ -198,54 +176,54 @@ static void run_sw(int n, int rho_idx) {
              DATA_DIR, SW_RHO_NAMES[rho_idx], n);
 
     if (file_exists(path)) {
-        printf("  [SKIP] SW_%s_%d.csv already exists\n", SW_RHO_NAMES[rho_idx], n);
+        printf("  [SKIP] SW_%s_%d.csv exists\n", SW_RHO_NAMES[rho_idx], n);
         return;
     }
 
-    printf("  [SW rho=%.2f] Starting for N=%d...\n", SW_RHOS[rho_idx], n);
+    printf("  [SW rho=%.2f] Starting n=%d...\n", SW_RHOS[rho_idx], n);
     int max_m = n * (n - 1) / 2;
-    int step = 1;
 
     SWResult *result = sw_result_create(max_m, SW_RHOS[rho_idx]);
-    sw_run(n, SW_RHOS[rho_idx], result, step);
-    save_sw_csv(n, rho_idx, result);
+    sw_run(n, SW_RHOS[rho_idx], result, 1);
+
+    FILE *fp = fopen(path, "w");
+    if (!fp) { fprintf(stderr, "Error: Cannot write %s\n", path); sw_result_free(result); return; }
+    fprintf(fp, "m,score,std\n");
+    for (int i = 0; i < result->count; i++)
+        fprintf(fp, "%d,%.10f,%.10f\n",
+                result->m_values[i], result->scores[i], result->stds[i]);
+    fclose(fp);
+    printf("  [SW rho=%.2f] Saved: %s\n", SW_RHOS[rho_idx], path);
+
     sw_result_free(result);
 }
 
-
 /* ============================================================================
- * TASK EXECUTION
+ * TASK EXECUTION (child process)
  * ============================================================================ */
 
 static void run_task(Task *task) {
-    /* Pin each worker to single-threaded LAPACK to prevent oversubscription */
     setenv("OMP_NUM_THREADS", "1", 1);
     setenv("OPENBLAS_NUM_THREADS", "1", 1);
     setenv("MKL_NUM_THREADS", "1", 1);
     setenv("VECLIB_MAXIMUM_THREADS", "1", 1);
 
-    if (g_seed)
-        rng_seed(g_seed ^ (uint64_t)task->n ^ (uint64_t)task->algo);
-    else
-        rng_seed((uint64_t)time(NULL) ^ (uint64_t)getpid());
-
     switch (task->algo) {
-        case 0: run_er(task->n); break;
-        case 1: run_fv(task->n); break;
+        case 0: run_er_seed(task->n, task->seed_id); break;
+        case 1: run_fv_seed(task->n, task->seed_id); break;
         default:
+            /* SW: seed the RNG for internal seed-loop determinism */
+            if (g_seed)
+                rng_seed(g_seed ^ (uint64_t)task->n ^ (uint64_t)task->algo);
+            else
+                rng_seed((uint64_t)time(NULL) ^ (uint64_t)getpid());
             run_sw(task->n, task->algo - 3);
             break;
     }
 }
 
 /* ============================================================================
- * COST ESTIMATION (for LPT scheduling)
- *
- * ER/FV: M × N³ per task  (greedy loop: eigendecomp per edge added)
- *   ER has ~2× constant vs FV (pseudoinverse vs eigenvector)
- * SW:    M × seeds × N³    (eigendecomp per (m, seed) pair)
- *
- * M = N(N-1)/2 - (N-1) ≈ N²/2
+ * COST ESTIMATION
  * ============================================================================ */
 
 static double estimate_cost(int n, int algo) {
@@ -254,54 +232,53 @@ static double estimate_cost(int n, int algo) {
     double N3 = dn * dn * dn;
 
     switch (algo) {
-        case 0: return M * N3 * 2.0;                   /* ER: pinv is ~2× eigvec */
-        case 1: return M * N3;                          /* FV */
-        default: return M * (double)SW_NUM_SEEDS * N3;  /* SW: 5 seeds × eigendecomp */
+        case 0: return M * N3 * 2.0;                    /* ER: 1 seed */
+        case 1: return M * N3;                           /* FV: 1 seed */
+        default: return M * (double)SW_NUM_SEEDS * N3;   /* SW: all seeds */
     }
 }
 
 /* ============================================================================
- * WORKER POOL (dynamic size, LPT-ordered)
+ * WORKER POOL (dynamic, LPT-ordered)
  * ============================================================================ */
 
 static void run_worker_pool(Task *tasks, int num_tasks, int pool_size) {
     pid_t *workers = calloc((size_t)pool_size, sizeof(pid_t));
-    int *worker_task = calloc((size_t)pool_size, sizeof(int)); /* which task each worker runs */
-    int active = 0;
-    int next_task = 0;
-    int completed = 0;
+    int *worker_task = calloc((size_t)pool_size, sizeof(int));
+    int active = 0, next_task = 0, completed = 0;
 
     printf("  [POOL] %d tasks, %d workers\n", num_tasks, pool_size);
-    printf("  [POOL] Heaviest task: %s n=%d (cost=%.2e)\n",
-           algo_name(tasks[0].algo), tasks[0].n, tasks[0].cost);
-    printf("  [POOL] Lightest task: %s n=%d (cost=%.2e)\n",
-           algo_name(tasks[num_tasks-1].algo), tasks[num_tasks-1].n,
-           tasks[num_tasks-1].cost);
+    printf("  [POOL] Heaviest: %s n=%d (cost=%.2e)\n",
+           algo_label(tasks[0].algo, tasks[0].seed_id), tasks[0].n, tasks[0].cost);
+    printf("  [POOL] Lightest: %s n=%d (cost=%.2e)\n",
+           algo_label(tasks[num_tasks-1].algo, tasks[num_tasks-1].seed_id),
+           tasks[num_tasks-1].n, tasks[num_tasks-1].cost);
     fflush(stdout);
 
     while (next_task < num_tasks || active > 0) {
-        /* Spawn workers up to pool_size */
         while (active < pool_size && next_task < num_tasks) {
             pid_t pid = fork();
             if (pid == 0) {
-                /* Child: exec fresh process to avoid heap corruption */
-                char algo_str[8], n_str[16];
+                /* Build argv for child */
+                char algo_str[8], n_str[16], sid_str[8], seed_str[32];
                 snprintf(algo_str, sizeof(algo_str), "%d", tasks[next_task].algo);
                 snprintf(n_str, sizeof(n_str), "%d", tasks[next_task].n);
-                char seed_str[32];
+                snprintf(sid_str, sizeof(sid_str), "%d", tasks[next_task].seed_id);
                 snprintf(seed_str, sizeof(seed_str), "%llu", (unsigned long long)g_seed);
-                if (g_init == INIT_RING && g_seed)
-                    execl(g_exe, g_exe, "--single", algo_str, n_str,
-                          "--ring", "--seed", seed_str, NULL);
-                else if (g_init == INIT_RING)
-                    execl(g_exe, g_exe, "--single", algo_str, n_str,
-                          "--ring", NULL);
-                else if (g_seed)
-                    execl(g_exe, g_exe, "--single", algo_str, n_str,
-                          "--seed", seed_str, NULL);
-                else
-                    execl(g_exe, g_exe, "--single", algo_str, n_str, NULL);
-                _exit(1); /* exec failed */
+
+                char *args[16];
+                int ai = 0;
+                args[ai++] = (char *)g_exe;
+                args[ai++] = "--single";
+                args[ai++] = algo_str;
+                args[ai++] = n_str;
+                args[ai++] = "--sid";
+                args[ai++] = sid_str;
+                if (g_init == INIT_RING) args[ai++] = "--ring";
+                if (g_seed) { args[ai++] = "--seed"; args[ai++] = seed_str; }
+                args[ai] = NULL;
+                execv(g_exe, args);
+                _exit(1);
             }
             workers[active] = pid;
             worker_task[active] = next_task;
@@ -309,20 +286,16 @@ static void run_worker_pool(Task *tasks, int num_tasks, int pool_size) {
             next_task++;
         }
 
-        /* Wait for any child to finish */
         if (active > 0) {
             int status;
             pid_t done = wait(&status);
-
-            /* Remove from active list */
             for (int i = 0; i < active; i++) {
                 if (workers[i] == done) {
                     completed++;
-                    if (completed % 20 == 0 || completed == num_tasks) {
+                    if (completed % 20 == 0 || completed == num_tasks)
                         printf("  [POOL] Progress: %d/%d tasks done\n",
                                completed, num_tasks);
-                        fflush(stdout);
-                    }
+                    fflush(stdout);
                     workers[i] = workers[active - 1];
                     worker_task[i] = worker_task[active - 1];
                     active--;
@@ -337,26 +310,97 @@ static void run_worker_pool(Task *tasks, int num_tasks, int pool_size) {
 }
 
 /* ============================================================================
+ * MERGE: aggregate per-seed temp CSVs into final CSV with mean ± std
+ * ============================================================================ */
+
+static void merge_seed_csvs(const char *algo, int n, int num_seeds) {
+    /* Read seed 0 to get row count */
+    char path[256];
+    snprintf(path, sizeof(path), "%s/.tmp_%s_%d_s0.csv", DATA_DIR, algo, n);
+    FILE *fp = fopen(path, "r");
+    if (!fp) { fprintf(stderr, "  [MERGE] Missing %s\n", path); return; }
+
+    char line[256];
+    fgets(line, sizeof(line), fp); /* skip header */
+    int count = 0;
+    while (fgets(line, sizeof(line), fp)) count++;
+    fclose(fp);
+    if (count == 0) return;
+
+    /* Allocate: m_values[count], all_scores[num_seeds][count] */
+    int *m_values = malloc((size_t)count * sizeof(int));
+    double *flat = malloc((size_t)num_seeds * count * sizeof(double));
+
+    /* Read all seed files */
+    for (int s = 0; s < num_seeds; s++) {
+        snprintf(path, sizeof(path), "%s/.tmp_%s_%d_s%d.csv", DATA_DIR, algo, n, s);
+        fp = fopen(path, "r");
+        if (!fp) { fprintf(stderr, "  [MERGE] Missing %s\n", path); free(m_values); free(flat); return; }
+        fgets(line, sizeof(line), fp); /* skip header */
+        for (int i = 0; i < count; i++) {
+            if (fscanf(fp, "%d,%lf\n", &m_values[i], &flat[s * count + i]) != 2) {
+                fprintf(stderr, "  [MERGE] Parse error in %s line %d\n", path, i + 2);
+            }
+        }
+        fclose(fp);
+        remove(path); /* delete temp file */
+    }
+
+    /* Write final CSV with mean, std */
+    char final_path[256];
+    make_path(final_path, sizeof(final_path), algo, n);
+    fp = fopen(final_path, "w");
+    if (!fp) { fprintf(stderr, "Error: Cannot write %s\n", final_path); free(m_values); free(flat); return; }
+
+    fprintf(fp, "m,score,std\n");
+    for (int i = 0; i < count; i++) {
+        double sum = 0.0;
+        for (int s = 0; s < num_seeds; s++) sum += flat[s * count + i];
+        double mean = sum / num_seeds;
+
+        double sum_sq = 0.0;
+        for (int s = 0; s < num_seeds; s++) {
+            double d = flat[s * count + i] - mean;
+            sum_sq += d * d;
+        }
+        double std = sqrt(sum_sq / num_seeds);
+
+        fprintf(fp, "%d,%.10f,%.10f\n", m_values[i], mean, std);
+    }
+    fclose(fp);
+
+    free(m_values);
+    free(flat);
+    printf("  [%s] Merged %d seeds -> %s (%d m-values)\n",
+           algo, num_seeds, final_path, count);
+}
+
+/* ============================================================================
  * MAIN
  * ============================================================================ */
 
 int main(int argc, char *argv[]) {
-    /* Single-task mode: ./benchmark --single <algo> <n>
-     * Used by worker pool via fork()+exec() to get a clean address space,
-     * avoiding heap corruption from FlexiBLAS/OpenBLAS internal state. */
+    /* --single mode: called by worker pool via fork()+exec() */
     if (argc >= 4 && strcmp(argv[1], "--single") == 0) {
         setenv("OMP_NUM_THREADS", "1", 1);
         setenv("OPENBLAS_NUM_THREADS", "1", 1);
         setenv("MKL_NUM_THREADS", "1", 1);
         setenv("VECLIB_MAXIMUM_THREADS", "1", 1);
         setenv("FLEXIBLAS_NUM_THREADS", "1", 1);
-        /* Parse extra flags after --single <algo> <n> */
+
+        int algo = atoi(argv[2]);
+        int n = atoi(argv[3]);
+        int sid = -1;
+
         for (int i = 4; i < argc; i++) {
             if (strcmp(argv[i], "--ring") == 0) g_init = INIT_RING;
             else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc)
                 g_seed = (uint64_t)atoll(argv[++i]);
+            else if (strcmp(argv[i], "--sid") == 0 && i + 1 < argc)
+                sid = atoi(argv[++i]);
         }
-        Task t = {.n = atoi(argv[3]), .algo = atoi(argv[2]), .cost = 0};
+
+        Task t = {.n = n, .algo = algo, .seed_id = sid, .cost = 0};
         run_task(&t);
         return 0;
     }
@@ -367,87 +411,142 @@ int main(int argc, char *argv[]) {
     int n_values[MAX_N_VALUES] = DEFAULT_N_VALUES;
     int num_n = DEFAULT_NUM_N;
     int load_db = 0;
-    int num_jobs = 0;  /* 0 = auto-detect */
+    int num_jobs = 0;
 
     int n_args = 0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--db") == 0) {
             load_db = 1;
+        } else if (strcmp(argv[i], "--algo") == 0 && i + 1 < argc) {
+            g_algo_mask = parse_algo(argv[++i]);
         } else if (strcmp(argv[i], "--ring") == 0) {
             g_init = INIT_RING;
         } else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
             g_seed = (uint64_t)atoll(argv[++i]);
-        } else if ((strcmp(argv[i], "--jobs") == 0 || strcmp(argv[i], "-j") == 0)
-                   && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "--w") == 0 ||
+                    strcmp(argv[i], "--jobs") == 0 ||
+                    strcmp(argv[i], "-j") == 0) && i + 1 < argc) {
             num_jobs = atoi(argv[++i]);
         } else {
             if (n_args == 0) num_n = 0;
-            if (num_n < MAX_N_VALUES) {
+            if (num_n < MAX_N_VALUES)
                 n_values[num_n++] = atoi(argv[i]);
-            }
             n_args++;
         }
     }
 
-    /* Auto-detect CPU count if not specified */
-    if (num_jobs <= 0) {
-        num_jobs = detect_cpus();
-    }
+    if (num_jobs <= 0) num_jobs = detect_cpus();
 
-    printf("Algebraic Connectivity Benchmark (Worker Pool)\n");
+    printf("Algebraic Connectivity Benchmark\n");
     printf("Workers: %d", num_jobs);
-    if (num_jobs == detect_cpus()) printf(" (auto-detected)");
-    printf("\n");
-    printf("N values (%d): ", num_n);
-    for (int i = 0; i < num_n; i++) {
-        printf("%d ", n_values[i]);
-    }
-    printf("\n");
-    printf("Init: %s\n", g_init == INIT_RING ? "ring" : "random spanning tree");
+    if (num_jobs == detect_cpus()) printf(" (auto)");
+    printf("\nN values (%d): ", num_n);
+    for (int i = 0; i < num_n; i++) printf("%d ", n_values[i]);
+    printf("\nInit: %s\n", g_init == INIT_RING ? "ring" : "random spanning tree");
+    printf("Seeds: %d (ER/FV), %d (SW)\n", BASELINE_NUM_SEEDS, SW_NUM_SEEDS);
     if (g_seed) printf("Seed: %llu\n", (unsigned long long)g_seed);
-    if (load_db) printf("HuggingFace load: enabled (--db)\n");
+    if (load_db) printf("HuggingFace load: enabled\n");
 
-    /* Build task list with cost estimates */
-    static const int ALGOS[] = {0, 1, 3, 4, 5}; /* ER, FV, SW×3 */
-    int num_tasks = num_n * NUM_ALGO_TYPES;
-    Task *tasks = malloc((size_t)num_tasks * sizeof(Task));
-
+    /*
+     * Build task list:
+     *   ER/FV: BASELINE_NUM_SEEDS tasks per (n, algo) — each is one seed
+     *   SW:    1 task per (n, rho) — handles seeds internally
+     */
+    int max_tasks = num_n * (2 * BASELINE_NUM_SEEDS + 3); /* upper bound */
+    Task *tasks = malloc((size_t)max_tasks * sizeof(Task));
     int t = 0;
+
     for (int i = 0; i < num_n; i++) {
-        for (int a = 0; a < NUM_ALGO_TYPES; a++) {
-            int algo = ALGOS[a];
-            tasks[t].n = n_values[i];
-            tasks[t].algo = algo;
-            tasks[t].cost = estimate_cost(n_values[i], algo);
-            t++;
+        int n = n_values[i];
+
+        if (g_algo_mask & ALGO_ER) {
+            char path[256]; make_path(path, sizeof(path), "ER", n);
+            if (!file_exists(path)) {
+                for (int s = 0; s < BASELINE_NUM_SEEDS; s++) {
+                    tasks[t].n = n;
+                    tasks[t].algo = 0;
+                    tasks[t].seed_id = s;
+                    tasks[t].cost = estimate_cost(n, 0);
+                    t++;
+                }
+            } else {
+                printf("  [SKIP] ER_%d.csv exists\n", n);
+            }
+        }
+
+        if (g_algo_mask & ALGO_FV) {
+            char path[256]; make_path(path, sizeof(path), "FV", n);
+            if (!file_exists(path)) {
+                for (int s = 0; s < BASELINE_NUM_SEEDS; s++) {
+                    tasks[t].n = n;
+                    tasks[t].algo = 1;
+                    tasks[t].seed_id = s;
+                    tasks[t].cost = estimate_cost(n, 1);
+                    t++;
+                }
+            } else {
+                printf("  [SKIP] FV_%d.csv exists\n", n);
+            }
+        }
+
+        if (g_algo_mask & ALGO_SW) {
+            for (int r = 0; r < 3; r++) {
+                char path[256];
+                snprintf(path, sizeof(path), "%s/SW_%s_%d.csv",
+                         DATA_DIR, SW_RHO_NAMES[r], n);
+                if (!file_exists(path)) {
+                    tasks[t].n = n;
+                    tasks[t].algo = 3 + r;
+                    tasks[t].seed_id = -1;
+                    tasks[t].cost = estimate_cost(n, 3 + r);
+                    t++;
+                } else {
+                    printf("  [SKIP] SW_%s_%d.csv exists\n", SW_RHO_NAMES[r], n);
+                }
+            }
         }
     }
 
-    /* Sort tasks by cost descending (Longest Processing Time first) */
+    int num_tasks = t;
+    if (num_tasks == 0) {
+        printf("Nothing to run (all CSVs exist).\n");
+        free(tasks);
+        return 0;
+    }
+
     qsort(tasks, (size_t)num_tasks, sizeof(Task), task_cmp_desc);
 
-    printf("Running %d total tasks with %d workers (LPT scheduled)\n",
+    printf("Running %d tasks with %d workers (LPT scheduled)\n",
            num_tasks, num_jobs);
     fflush(stdout);
 
-    /* Run all tasks via worker pool */
     run_worker_pool(tasks, num_tasks, num_jobs);
-
     free(tasks);
+
+    /* Merge ER/FV per-seed temp CSVs into final CSVs */
+    for (int i = 0; i < num_n; i++) {
+        int n = n_values[i];
+        if (g_algo_mask & ALGO_ER) {
+            char path[256]; make_path(path, sizeof(path), "ER", n);
+            if (!file_exists(path)) merge_seed_csvs("ER", n, BASELINE_NUM_SEEDS);
+        }
+        if (g_algo_mask & ALGO_FV) {
+            char path[256]; make_path(path, sizeof(path), "FV", n);
+            if (!file_exists(path)) merge_seed_csvs("FV", n, BASELINE_NUM_SEEDS);
+        }
+    }
 
     printf("\n========================================\n");
     printf("All benchmarks complete!\n");
     printf("Results saved to: %s/\n", DATA_DIR);
     printf("========================================\n");
 
-    /* Load results into HuggingFace if --db flag was given */
     if (load_db) {
         printf("\nLoading results into HuggingFace...\n");
         fflush(stdout);
         int ret = system("python3 database/db_baselines.py load");
-        if (ret != 0) {
+        if (ret != 0)
             fprintf(stderr, "Warning: HuggingFace load failed (exit code %d)\n", ret);
-        }
     }
 
     return 0;
