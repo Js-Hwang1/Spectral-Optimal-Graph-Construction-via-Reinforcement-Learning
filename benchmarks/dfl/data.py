@@ -100,8 +100,9 @@ def create_data_loaders(dataset, partition_indices, batch_size=32):
     loaders = []
     for indices in partition_indices:
         subset = Subset(dataset, indices)
-        loader = DataLoader(subset, batch_size=batch_size, shuffle=True,
-                            drop_last=True, num_workers=0)
+        bs = min(batch_size, max(len(indices), 1))
+        loader = DataLoader(subset, batch_size=bs, shuffle=True,
+                            drop_last=False, num_workers=0)
         loaders.append(loader)
     return loaders
 
