@@ -1,95 +1,119 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#SBATCH --job-name=dfl_sweep
+#SBATCH --partition=b40x4-long
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=32G
+#SBATCH --time=2-00:00:00
+#SBATCH --output=logs/dfl_sweep_%j.log
+
+# ============================================================
+# DFL sweep: runs ALL topology x alpha x seed configs
+# sequentially on a single GPU.
 #
-# run_dfl_sweep.sh — Launch all DFL training experiments for the NeurIPS paper.
-#
-# Submits one Slurm job per (topology, n, d, alpha, seed) configuration.
-# Results are saved to benchmarks/dfl/results/.
-#
-# Usage: bash run_dfl_sweep.sh
+# Usage:
+#   sbatch run_dfl_sweep.sh
+# ============================================================
 
-set -euo pipefail
+module load slurm
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DFL_DIR="$(dirname "$SCRIPT_DIR")"
-RESULTS_DIR="${DFL_DIR}/results"
-mkdir -p "$RESULTS_DIR"
+WORKDIR=/lustre/nvwulf/scratch/jungshwang/Spectral-Optimal-Graph-Construction-via-Reinforcement-Learning
+cd $WORKDIR
 
-# Experiment grid
-TOPOLOGIES="ring torus expander random qrsdr base"
-N_VALUES="32 64"
-D_VALUES="4"
-ALPHAS="0.1 0.3 1.0"
-SEEDS="0 1 2"
+export SINGULARITYENV_PYTHONNOUSERSITE=1
+export SINGULARITYENV_PYTHONUNBUFFERED=1
 
-# Training config
-DATASET="cifar100"
+mkdir -p logs benchmarks/dfl/results
+
+CONTAINER=dfl.sif
+TRAIN_SCRIPT=benchmarks/dfl/train.py
+DATA_DIR=${WORKDIR}/data
+OUT_DIR=benchmarks/dfl/results
+
+# ============================================================
+# Experiment config
+# ============================================================
+DATASET=cifar100
+N=32
+D=4
 ROUNDS=2000
 TAU=5
 BATCH_SIZE=32
 EVAL_FREQ=10
 
-# Container path (update for your HPC)
-CONTAINER="/lustre/nvwulf/scratch/jungshwang/deeprl-graph/deeprl-graph.sif"
+# Topologies to compare:
+#   ring     - d=2 static baseline
+#   torus    - d=4 static baseline
+#   expander - d=2*ceil(log2(n)) static baseline
+#   random   - random d-regular (our main static competitor)
+#   qrsdr    - QRS-DR (OURS)
+#   base     - Base-(k+1) time-varying (SOTA competitor)
+TOPOLOGIES="ring torus expander random qrsdr base"
 
-JOB_COUNT=0
+# Heterogeneity levels
+ALPHAS="0.1 0.3 1.0"
 
+# Seeds for averaging
+SEEDS="0 1 2"
+
+# ============================================================
+# Run loop
+# ============================================================
+TOTAL=0
+DONE=0
+
+# Count total runs
 for topo in $TOPOLOGIES; do
-  for n in $N_VALUES; do
-    for d in $D_VALUES; do
-      for alpha in $ALPHAS; do
-        for seed in $SEEDS; do
-          JOB_NAME="dfl_${topo}_n${n}_d${d}_a${alpha}_s${seed}"
-
-          # Skip ring/torus/expander with non-default d (they have fixed degree)
-          if [[ "$topo" == "ring" || "$topo" == "torus" || "$topo" == "expander" ]]; then
-            if [[ "$d" != "4" ]]; then
-              continue
-            fi
-          fi
-
-          sbatch --job-name="$JOB_NAME" \
-                 --output="${RESULTS_DIR}/logs/${JOB_NAME}.out" \
-                 --error="${RESULTS_DIR}/logs/${JOB_NAME}.err" \
-                 --partition=b40x4-long \
-                 --gres=gpu:1 \
-                 --time=12:00:00 \
-                 --mem=32G \
-                 <<EOF
-#!/bin/bash
-#SBATCH --job-name=$JOB_NAME
-
-module load slurm
-
-mkdir -p ${RESULTS_DIR}/logs
-
-singularity exec --nv \
-    --bind /lustre:/lustre \
-    --bind /home:/home \
-    $CONTAINER \
-    bash -c "
-cd ${DFL_DIR}
-PYTHONUNBUFFERED=1 python3 train.py \
-    --topo $topo \
-    --n $n \
-    --d $d \
-    --dataset $DATASET \
-    --alpha $alpha \
-    --rounds $ROUNDS \
-    --tau $TAU \
-    --batch-size $BATCH_SIZE \
-    --eval-freq $EVAL_FREQ \
-    --seed $seed \
-    --output-dir $RESULTS_DIR
-"
-EOF
-          JOB_COUNT=$((JOB_COUNT + 1))
-          echo "Submitted: $JOB_NAME"
-        done
-      done
+  for alpha in $ALPHAS; do
+    for seed in $SEEDS; do
+      TOTAL=$((TOTAL + 1))
     done
   done
 done
 
+echo "============================================================"
+echo " DFL Sweep: $DATASET, n=$N, d=$D"
+echo " $TOTAL total runs (${#TOPOLOGIES} topos x ${#ALPHAS} alphas x ${#SEEDS} seeds)"
+echo "============================================================"
 echo ""
-echo "Total jobs submitted: $JOB_COUNT"
-echo "Results will be in: $RESULTS_DIR/"
+
+for topo in $TOPOLOGIES; do
+  for alpha in $ALPHAS; do
+    for seed in $SEEDS; do
+      DONE=$((DONE + 1))
+      RUN_NAME="${DATASET}_${topo}_n${N}_d${D}_dir${alpha}_s${seed}"
+
+      # Skip if result already exists
+      RESULT_FILE="${OUT_DIR}/${RUN_NAME}.json"
+      if [ -f "$RESULT_FILE" ]; then
+        echo "[$DONE/$TOTAL] SKIP $RUN_NAME (exists)"
+        continue
+      fi
+
+      echo "[$DONE/$TOTAL] RUN  $RUN_NAME"
+      echo "  topo=$topo n=$N d=$D alpha=$alpha seed=$seed"
+
+      singularity exec --nv $CONTAINER python $TRAIN_SCRIPT \
+          --topo $topo \
+          --n $N \
+          --d $D \
+          --alpha $alpha \
+          --seed $seed \
+          --dataset $DATASET \
+          --tau $TAU \
+          --rounds $ROUNDS \
+          --batch-size $BATCH_SIZE \
+          --eval-freq $EVAL_FREQ \
+          --data-dir $DATA_DIR \
+          --output-dir $OUT_DIR
+
+      echo "  DONE ($RUN_NAME)"
+      echo ""
+    done
+  done
+done
+
+echo "============================================================"
+echo " All $TOTAL runs complete."
+echo " Results in: $OUT_DIR/"
+echo "============================================================"
