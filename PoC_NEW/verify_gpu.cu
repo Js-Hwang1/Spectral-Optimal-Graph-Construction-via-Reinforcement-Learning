@@ -143,9 +143,9 @@ __global__ void kernel_random_init(
 __global__ void kernel_find_max_over(
     const int *deg, int n, int d, int *result_idx, int *result_deg)
 {
-    extern __shared__ int sdata[];
-    int *s_idx = sdata;
-    int *s_deg = sdata + blockDim.x;
+    extern __shared__ char smem_raw[];
+    int *s_idx = (int*)smem_raw;
+    int *s_deg = s_idx + blockDim.x;
 
     int tid = threadIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -175,9 +175,9 @@ __global__ void kernel_find_max_over(
 __global__ void kernel_find_min_under(
     const int *deg, int n, int d, int *result_idx, int *result_deg)
 {
-    extern __shared__ int sdata[];
-    int *s_idx = sdata;
-    int *s_deg = sdata + blockDim.x;
+    extern __shared__ char smem_raw[];
+    int *s_idx = (int*)smem_raw;
+    int *s_deg = s_idx + blockDim.x;
 
     int tid = threadIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -411,16 +411,17 @@ __device__ double warp_reduce_sum(double val) {
 }
 
 __global__ void kernel_dot(const double *a, const double *b, double *result, int n) {
-    extern __shared__ double sdata[];
+    extern __shared__ char smem_raw[];
+    double *smem = (double*)smem_raw;
     int tid = threadIdx.x;
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    sdata[tid] = (i < n) ? a[i] * b[i] : 0.0;
+    smem[tid] = (i < n) ? a[i] * b[i] : 0.0;
     __syncthreads();
     for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) sdata[tid] += sdata[tid + s];
+        if (tid < s) smem[tid] += smem[tid + s];
         __syncthreads();
     }
-    if (tid == 0) atomicAdd(result, sdata[0]);
+    if (tid == 0) atomicAdd(result, smem[0]);
 }
 
 double gpu_dot(const double *a, const double *b, int n, double *d_tmp) {
