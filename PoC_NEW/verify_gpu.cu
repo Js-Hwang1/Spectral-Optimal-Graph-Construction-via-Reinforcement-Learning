@@ -1,17 +1,13 @@
 /*
- * verify_gpu.cu — GPU-accelerated verification that random init + degree
+ * verify_gpu.cu — Large-scale verification that random init + degree
  * regularization produces near-Ramanujan d-regular graphs.
  *
- * ALL computation on GPU — no host-device transfers for graph data.
- *   Phase 1: Random init (parallel edge generation on GPU)
- *   Phase 2: Degree regularization (GPU kernel)
- *   Phase 3: λ₂ via Lanczos with sparse matvec (GPU)
- *
- * Graph stored as CSR on GPU for sparse matvec.
- * During init/regularization, stored as sorted adjacency arrays.
+ * Phase 1 (CPU): Random init with exactly m=nd/2 edges
+ * Phase 2 (CPU): Sequential degree regularization
+ * Phase 3 (GPU): Lanczos eigensolve with sparse matvec
  *
  * Build:
- *   nvcc -O3 -arch=sm_120 -o verify_gpu verify_gpu.cu -lcusparse -lcublas
+ *   nvcc -O3 -arch=sm_120 -o verify_gpu verify_gpu.cu -lm
  *
  * Usage:
  *   ./verify_gpu <n> <d> [seed]
@@ -22,108 +18,138 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
+#include <stdint.h>
 #include <cuda_runtime.h>
-#include <cusolverDn.h>
 
 #define CUDA_CHECK(call) do { \
     cudaError_t err = call; \
     if (err != cudaSuccess) { \
         fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__, \
-                cudaGetErrorString(err)); \
-        exit(1); \
+                cudaGetErrorString(err)); exit(1); \
     } \
 } while(0)
 
 // ============================================================
-// GPU RNG: xoshiro128** per thread
+// CPU RNG
 // ============================================================
-
-__device__ uint32_t dev_rotl(uint32_t x, int k) {
-    return (x << k) | (x >> (32 - k));
+static uint64_t rng_s;
+static void rng_seed(uint64_t s) { rng_s = s; }
+static uint32_t rng_next(void) {
+    rng_s = rng_s * 6364136223846793005ULL + 1442695040888963407ULL;
+    return (uint32_t)(rng_s >> 32);
 }
-
-struct RNGState {
-    uint32_t s[4];
-};
-
-__device__ uint32_t rng_next(RNGState *st) {
-    uint32_t r = dev_rotl(st->s[1] * 5, 7) * 9;
-    uint32_t t = st->s[1] << 9;
-    st->s[2] ^= st->s[0]; st->s[3] ^= st->s[1];
-    st->s[1] ^= st->s[2]; st->s[0] ^= st->s[3];
-    st->s[2] ^= t; st->s[3] = dev_rotl(st->s[3], 11);
-    return r;
-}
-
-__device__ void rng_init(RNGState *st, uint64_t seed, int tid) {
-    uint64_t s = seed + tid * 2654435761ULL;
-    st->s[0] = (uint32_t)(s);
-    st->s[1] = (uint32_t)(s >> 16) ^ 0xABCD1234;
-    st->s[2] = (uint32_t)(s * 6364136223846793005ULL);
-    st->s[3] = (uint32_t)(s >> 32) ^ 0xDEADBEEF;
-    for (int i = 0; i < 10; i++) rng_next(st);
-}
+static int rng_int(int n) { return (int)(rng_next() % (uint32_t)n); }
 
 // ============================================================
-// Graph on GPU: fixed-size adjacency array per node
-// adj_flat[i * max_deg + k] = k-th neighbor of node i (-1 if empty)
-// deg[i] = current degree of node i
+// Phase 1 (CPU): Random init — exactly m edges
 // ============================================================
+void phase1_init(int *adj, int *deg, int n, int d, int max_deg, uint64_t seed) {
+    long long m = (long long)n * d / 2;
+    rng_seed(seed);
+    memset(deg, 0, n * sizeof(int));
+    for (long long i = 0; i < (long long)n * max_deg; i++) adj[i] = -1;
 
-// Phase 1: Each thread generates edges by picking random (i,j) pairs.
-// Uses atomicCAS on adj slots to avoid duplicates.
-
-__device__ int gpu_has_edge(int *adj_flat, int *deg, int i, int j, int max_deg) {
-    for (int k = 0; k < deg[i]; k++)
-        if (adj_flat[i * max_deg + k] == j) return 1;
-    return 0;
-}
-
-__device__ int gpu_add_edge_atomic(int *adj_flat, int *deg, int i, int j, int max_deg) {
-    // Try to atomically add j to node i's adjacency list
-    int pos = atomicAdd(&deg[i], 1);
-    if (pos >= max_deg) {
-        atomicSub(&deg[i], 1);
-        return 0; // overflow
+    long long count = 0;
+    while (count < m) {
+        int u = rng_int(n), v = rng_int(n);
+        if (u == v) continue;
+        // Check edge exists (linear scan, OK for small d)
+        int exists = 0;
+        for (int k = 0; k < deg[u]; k++)
+            if (adj[u * max_deg + k] == v) { exists = 1; break; }
+        if (exists) continue;
+        adj[u * max_deg + deg[u]++] = v;
+        adj[v * max_deg + deg[v]++] = u;
+        count++;
     }
-    adj_flat[i * max_deg + pos] = j;
-    return 1;
 }
 
-__global__ void kernel_random_init(
-    int *adj_flat, int *deg, int n, int d, int max_deg,
-    long long edges_per_thread, uint64_t seed, int *global_count, long long target_m)
-{
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    RNGState rng;
-    rng_init(&rng, seed, tid);
+// ============================================================
+// Phase 2 (CPU): Sequential degree regularization
+// ============================================================
+void phase2_regularize(int *adj, int *deg, int n, int d, int max_deg) {
+    for (long long iter = 0; iter < (long long)n * d * 4; iter++) {
+        int u = -1, mx = d, w = -1, mn = d;
+        for (int i = 0; i < n; i++) {
+            if (deg[i] > mx) { mx = deg[i]; u = i; }
+            if (deg[i] < mn) { mn = deg[i]; w = i; }
+        }
+        if (u < 0 || w < 0) break;
 
-    for (long long e = 0; e < edges_per_thread; e++) {
-        // Check if we've reached target
-        if (atomicAdd(global_count, 0) >= (int)target_m) return;
+        // Find v in N(u): not w, not in N(w), highest degree
+        int bv = -1, bd = -1;
+        for (int k = 0; k < deg[u]; k++) {
+            int v = adj[u * max_deg + k];
+            if (v < 0 || v == w) continue;
+            int skip = 0;
+            for (int kk = 0; kk < deg[w]; kk++)
+                if (adj[w * max_deg + kk] == v) { skip = 1; break; }
+            if (skip) continue;
+            if (deg[v] > bd) { bd = deg[v]; bv = v; }
+        }
 
-        int i = rng_next(&rng) % n;
-        int j = rng_next(&rng) % n;
-        if (i == j) continue;
-        // Canonical order to avoid double-insertion races
-        int lo = i < j ? i : j;
-        int hi = i < j ? j : i;
-
-        // Check if edge exists (approximate — race possible but harmless)
-        if (gpu_has_edge(adj_flat, deg, lo, hi, max_deg)) continue;
-
-        // Try to add both directions
-        int ok1 = gpu_add_edge_atomic(adj_flat, deg, lo, hi, max_deg);
-        if (ok1) {
-            int ok2 = gpu_add_edge_atomic(adj_flat, deg, hi, lo, max_deg);
-            if (ok2) {
-                atomicAdd(global_count, 1);
+        if (bv >= 0) {
+            // Remove {u, bv}
+            for (int k = 0; k < deg[u]; k++)
+                if (adj[u * max_deg + k] == bv) {
+                    adj[u * max_deg + k] = adj[u * max_deg + --deg[u]];
+                    adj[u * max_deg + deg[u]] = -1; break; }
+            for (int k = 0; k < deg[bv]; k++)
+                if (adj[bv * max_deg + k] == u) {
+                    adj[bv * max_deg + k] = adj[bv * max_deg + --deg[bv]];
+                    adj[bv * max_deg + deg[bv]] = -1; break; }
+            // Add {w, bv}
+            adj[w * max_deg + deg[w]++] = bv;
+            adj[bv * max_deg + deg[bv]++] = w;
+        } else {
+            // Fallback: check u~w
+            int uw = 0;
+            for (int k = 0; k < deg[u]; k++)
+                if (adj[u * max_deg + k] == w) { uw = 1; break; }
+            if (!uw) {
+                adj[u * max_deg + deg[u]++] = w;
+                adj[w * max_deg + deg[w]++] = u;
+                bv = -1; bd = -1;
+                for (int k = 0; k < deg[u]; k++) {
+                    int v = adj[u * max_deg + k];
+                    if (v < 0 || v == w) continue;
+                    if (deg[v] > bd) { bd = deg[v]; bv = v; }
+                }
+                if (bv >= 0) {
+                    for (int k = 0; k < deg[u]; k++)
+                        if (adj[u * max_deg + k] == bv) {
+                            adj[u * max_deg + k] = adj[u * max_deg + --deg[u]];
+                            adj[u * max_deg + deg[u]] = -1; break; }
+                    for (int k = 0; k < deg[bv]; k++)
+                        if (adj[bv * max_deg + k] == u) {
+                            adj[bv * max_deg + k] = adj[bv * max_deg + --deg[bv]];
+                            adj[bv * max_deg + deg[bv]] = -1; break; }
+                }
             } else {
-                // Rollback lo side (find and remove hi)
-                for (int k = 0; k < deg[lo]; k++) {
-                    if (adj_flat[lo * max_deg + k] == hi) {
-                        adj_flat[lo * max_deg + k] = -1;
-                        atomicSub(&deg[lo], 1);
+                bv = -1; bd = -1;
+                for (int k = 0; k < deg[u]; k++) {
+                    int v = adj[u * max_deg + k]; if (v < 0) continue;
+                    if (deg[v] > bd) { bd = deg[v]; bv = v; }
+                }
+                if (bv >= 0) {
+                    for (int k = 0; k < deg[u]; k++)
+                        if (adj[u * max_deg + k] == bv) {
+                            adj[u * max_deg + k] = adj[u * max_deg + --deg[u]];
+                            adj[u * max_deg + deg[u]] = -1; break; }
+                    for (int k = 0; k < deg[bv]; k++)
+                        if (adj[bv * max_deg + k] == u) {
+                            adj[bv * max_deg + k] = adj[bv * max_deg + --deg[bv]];
+                            adj[bv * max_deg + deg[bv]] = -1; break; }
+                }
+                for (int x = 0; x < n; x++) {
+                    if (x == w || deg[x] >= d) continue;
+                    int has = 0;
+                    for (int k = 0; k < deg[w]; k++)
+                        if (adj[w * max_deg + k] == x) { has = 1; break; }
+                    if (!has) {
+                        adj[w * max_deg + deg[w]++] = x;
+                        adj[x * max_deg + deg[x]++] = w;
                         break;
                     }
                 }
@@ -133,167 +159,35 @@ __global__ void kernel_random_init(
 }
 
 // ============================================================
-// Phase 2: Parallel degree regularization on GPU
-//
-// Each round:
-//   1. Classify nodes as over/under-degree (parallel)
-//   2. Match over↔under pairs (parallel with atomics)
-//   3. Each pair independently transfers one edge (parallel)
-//   ~10-20 rounds, each fully parallel → O(nd√d) total
+// GPU RNG for Lanczos init
 // ============================================================
-
-// Classify nodes and build over/under lists
-__global__ void kernel_classify(
-    const int *deg, int n, int d,
-    int *over_list, int *under_list,
-    int *n_over, int *n_under)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) return;
-    if (deg[i] > d) {
-        int pos = atomicAdd(n_over, 1);
-        over_list[pos] = i;
-    } else if (deg[i] < d) {
-        int pos = atomicAdd(n_under, 1);
-        under_list[pos] = i;
-    }
-}
-
-// Each thread handles one (over, under) pair and does the swap
-__global__ void kernel_parallel_swap(
-    int *adj, int *deg, int n, int d, int max_deg,
-    const int *over_list, const int *under_list,
-    int num_pairs, int *claimed)
-{
-    int pair_idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (pair_idx >= num_pairs) return;
-
-    int u = over_list[pair_idx];  // over-degree
-    int w = under_list[pair_idx]; // under-degree
-
-    // Atomically claim both nodes — if either is already claimed, skip
-    if (atomicCAS(&claimed[u], 0, 1) != 0) return;
-    if (atomicCAS(&claimed[w], 0, 1) != 0) {
-        claimed[u] = 0; // release u
-        return;
-    }
-
-    // Find v in N(u): not w, not adjacent to w, not claimed
-    int best_v = -1, best_vd = -1;
-    for (int k = 0; k < deg[u]; k++) {
-        int v = adj[u * max_deg + k];
-        if (v < 0 || v == w) continue;
-        if (claimed[v]) continue;
-        // Check w~v
-        int w_has_v = 0;
-        for (int kk = 0; kk < deg[w]; kk++)
-            if (adj[w * max_deg + kk] == v) { w_has_v = 1; break; }
-        if (w_has_v) continue;
-        if (deg[v] > best_vd) { best_vd = deg[v]; best_v = v; }
-    }
-
-    if (best_v >= 0) {
-        // Claim v too
-        if (atomicCAS(&claimed[best_v], 0, 1) != 0) {
-            // v got claimed by another thread — release and skip
-            claimed[u] = 0; claimed[w] = 0;
-            return;
-        }
-
-        // Remove {u, best_v}
-        for (int k = 0; k < deg[u]; k++) {
-            if (adj[u * max_deg + k] == best_v) {
-                adj[u * max_deg + k] = adj[u * max_deg + deg[u] - 1];
-                adj[u * max_deg + deg[u] - 1] = -1;
-                break;
-            }
-        }
-        for (int k = 0; k < deg[best_v]; k++) {
-            if (adj[best_v * max_deg + k] == u) {
-                adj[best_v * max_deg + k] = adj[best_v * max_deg + deg[best_v] - 1];
-                adj[best_v * max_deg + deg[best_v] - 1] = -1;
-                break;
-            }
-        }
-        atomicSub(&deg[u], 1);
-        atomicSub(&deg[best_v], 1);
-
-        // Add {w, best_v}
-        int pos_w = atomicAdd(&deg[w], 1);
-        adj[w * max_deg + pos_w] = best_v;
-        int pos_v = atomicAdd(&deg[best_v], 1);
-        adj[best_v * max_deg + pos_v] = w;
-
-        claimed[best_v] = 0;
-    }
-    // Release claims
-    claimed[u] = 0;
-    claimed[w] = 0;
-}
-
-void gpu_regularize(int *d_adj, int *d_deg, int n, int d, int max_deg) {
-    int *d_over, *d_under, *d_n_over, *d_n_under, *d_claimed;
-    CUDA_CHECK(cudaMalloc(&d_over, n * sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_under, n * sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_n_over, sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_n_under, sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_claimed, n * sizeof(int)));
-
-    int block = 256;
-    int grid = (n + block - 1) / block;
-
-    for (int round = 0; round < n * d; round++) {
-        // Reset counts
-        CUDA_CHECK(cudaMemset(d_n_over, 0, sizeof(int)));
-        CUDA_CHECK(cudaMemset(d_n_under, 0, sizeof(int)));
-        CUDA_CHECK(cudaMemset(d_claimed, 0, n * sizeof(int)));
-
-        // Classify nodes
-        kernel_classify<<<grid, block>>>(d_deg, n, d, d_over, d_under, d_n_over, d_n_under);
-        cudaDeviceSynchronize();
-
-        int h_n_over, h_n_under;
-        CUDA_CHECK(cudaMemcpy(&h_n_over, d_n_over, sizeof(int), cudaMemcpyDeviceToHost));
-        CUDA_CHECK(cudaMemcpy(&h_n_under, d_n_under, sizeof(int), cudaMemcpyDeviceToHost));
-
-        if (h_n_over == 0 && h_n_under == 0) break;
-        if (h_n_over == 0 || h_n_under == 0) break;
-
-        int num_pairs = h_n_over < h_n_under ? h_n_over : h_n_under;
-        int swap_grid = (num_pairs + block - 1) / block;
-
-        kernel_parallel_swap<<<swap_grid, block>>>(
-            d_adj, d_deg, n, d, max_deg,
-            d_over, d_under, num_pairs, d_claimed);
-        cudaDeviceSynchronize();
-    }
-
-    cudaFree(d_over); cudaFree(d_under);
-    cudaFree(d_n_over); cudaFree(d_n_under);
-    cudaFree(d_claimed);
+struct GPURng { uint32_t s[4]; };
+__device__ uint32_t gpu_rng(GPURng *r) {
+    uint32_t t = r->s[1] << 9;
+    r->s[2] ^= r->s[0]; r->s[3] ^= r->s[1];
+    r->s[1] ^= r->s[2]; r->s[0] ^= r->s[3];
+    r->s[2] ^= t; r->s[3] = (r->s[3] << 11) | (r->s[3] >> 21);
+    return r->s[0] + r->s[3];
 }
 
 // ============================================================
-// Phase 3: Lanczos on GPU — sparse Laplacian matvec
+// Phase 3 (GPU): Lanczos — sparse matvec + reductions
 // ============================================================
 
-// Kernel: y = L * x where L = D - A (sparse, adjacency list)
-__global__ void kernel_laplacian_matvec(
-    const int *adj_flat, const int *deg, const double *x, double *y,
+__global__ void kernel_laplacian_mv(
+    const int *adj, const int *deg, const double *x, double *y,
     int n, int max_deg)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
-
     double s = deg[i] * x[i];
     for (int k = 0; k < deg[i]; k++) {
-        int j = adj_flat[i * max_deg + k];
+        int j = adj[i * max_deg + k];
         if (j >= 0) s -= x[j];
     }
     y[i] = s;
 }
 
-// Kernel: various vector ops
 __global__ void kernel_axpy(double *y, const double *x, double a, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) y[i] += a * x[i];
@@ -304,314 +198,192 @@ __global__ void kernel_scale(double *x, double a, int n) {
     if (i < n) x[i] *= a;
 }
 
-__global__ void kernel_init_random(double *x, int n, uint64_t seed) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) return;
-    RNGState rng;
-    rng_init(&rng, seed, i);
-    x[i] = (double)(rng_next(&rng) & 0xFFFF) / 32768.0 - 1.0;
-}
-
-// Dot product via reduction
-__device__ double warp_reduce_sum(double val) {
-    for (int offset = 16; offset > 0; offset /= 2)
-        val += __shfl_down_sync(0xffffffff, val, offset);
-    return val;
-}
-
-__global__ void kernel_dot(const double *a, const double *b, double *result, int n) {
-    extern __shared__ char smem_raw[];
-    double *smem = (double*)smem_raw;
+__global__ void kernel_dot(const double *a, const double *b, double *out, int n) {
+    extern __shared__ char smem[];
+    double *sd = (double*)smem;
     int tid = threadIdx.x;
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    smem[tid] = (i < n) ? a[i] * b[i] : 0.0;
+    int i = blockIdx.x * blockDim.x + tid;
+    sd[tid] = (i < n) ? a[i] * b[i] : 0.0;
     __syncthreads();
-    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
-        if (tid < s) smem[tid] += smem[tid + s];
+    for (int s = blockDim.x/2; s > 0; s >>= 1) {
+        if (tid < s) sd[tid] += sd[tid+s];
         __syncthreads();
     }
-    if (tid == 0) atomicAdd(result, smem[0]);
+    if (tid == 0) atomicAdd(out, sd[0]);
 }
 
-double gpu_dot(const double *a, const double *b, int n, double *d_tmp) {
-    CUDA_CHECK(cudaMemset(d_tmp, 0, sizeof(double)));
-    int block = 256;
-    int grid = (n + block - 1) / block;
-    kernel_dot<<<grid, block, block * sizeof(double)>>>(a, b, d_tmp, n);
-    double result;
-    CUDA_CHECK(cudaMemcpy(&result, d_tmp, sizeof(double), cudaMemcpyDeviceToHost));
-    return result;
+double gpu_dot(const double *a, const double *b, int n, double *tmp) {
+    CUDA_CHECK(cudaMemset(tmp, 0, sizeof(double)));
+    kernel_dot<<<(n+255)/256, 256, 256*sizeof(double)>>>(a, b, tmp, n);
+    double r; CUDA_CHECK(cudaMemcpy(&r, tmp, sizeof(double), cudaMemcpyDeviceToHost));
+    return r;
 }
 
-double gpu_lanczos_lambda2(
-    int *d_adj, int *d_deg, int n, int max_deg, int lanczos_k)
-{
-    int block = 256;
-    int grid = (n + block - 1) / block;
-
-    double *d_v0, *d_v1, *d_w, *d_tmp;
-    CUDA_CHECK(cudaMalloc(&d_v0, n * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_v1, n * sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_w, n * sizeof(double)));
+double gpu_lanczos(int *d_adj, int *d_deg, int n, int max_deg, int iters) {
+    int bl = 256, gr = (n+bl-1)/bl;
+    double *d_v0, *d_v1, *d_w, *d_ones, *d_tmp;
+    CUDA_CHECK(cudaMalloc(&d_v0, n*sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_v1, n*sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_w, n*sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_ones, n*sizeof(double)));
     CUDA_CHECK(cudaMalloc(&d_tmp, sizeof(double)));
 
-    double *h_alpha = (double*)malloc(lanczos_k * sizeof(double));
-    double *h_beta = (double*)malloc(lanczos_k * sizeof(double));
+    // Fill ones
+    double *h = (double*)malloc(n*sizeof(double));
+    for (int i = 0; i < n; i++) h[i] = 1.0;
+    CUDA_CHECK(cudaMemcpy(d_ones, h, n*sizeof(double), cudaMemcpyHostToDevice));
 
-    // d_ones: vector of all 1s for computing sums via dot product
-    double *d_ones;
-    CUDA_CHECK(cudaMalloc(&d_ones, n * sizeof(double)));
-    // Fill with 1.0
-    {
-        double *h_ones = (double*)malloc(n * sizeof(double));
-        for (int i = 0; i < n; i++) h_ones[i] = 1.0;
-        CUDA_CHECK(cudaMemcpy(d_ones, h_ones, n * sizeof(double), cudaMemcpyHostToDevice));
-        free(h_ones);
-    }
+    // Random v1 orthogonal to 1
+    for (int i = 0; i < n; i++) h[i] = (double)(rand()%10000)/5000.0 - 1.0;
+    double s = 0; for (int i = 0; i < n; i++) s += h[i]; s /= n;
+    double nm = 0; for (int i = 0; i < n; i++) { h[i] -= s; nm += h[i]*h[i]; }
+    nm = sqrt(nm); for (int i = 0; i < n; i++) h[i] /= nm;
+    CUDA_CHECK(cudaMemcpy(d_v1, h, n*sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_v0, 0, n*sizeof(double)));
 
-    // Init v1 random, orthogonal to 1 — all on GPU
-    kernel_init_random<<<grid, block>>>(d_v1, n, 777);
-    // Subtract mean: mean = (1^T v) / n, then v -= mean * 1
-    double sum_val = gpu_dot(d_v1, d_ones, n, d_tmp);
-    double mean = sum_val / n;
-    kernel_axpy<<<grid, block>>>(d_v1, d_ones, -mean, n);  // v1 -= mean
-    // Normalize
-    double norm_sq = gpu_dot(d_v1, d_v1, n, d_tmp);
-    double inv_norm = 1.0 / sqrt(norm_sq);
-    kernel_scale<<<grid, block>>>(d_v1, inv_norm, n);
-    CUDA_CHECK(cudaMemset(d_v0, 0, n * sizeof(double)));
+    double *al = (double*)malloc(iters*sizeof(double));
+    double *be = (double*)malloc(iters*sizeof(double));
+    double beta = 0; int ak = 0;
 
-    double beta = 0;
-    int actual_k = 0;
-
-    for (int j = 0; j < lanczos_k; j++) {
-        // w = L * v1
-        kernel_laplacian_matvec<<<grid, block>>>(d_adj, d_deg, d_v1, d_w, n, max_deg);
-
-        // alpha = v1^T w
+    for (int j = 0; j < iters; j++) {
+        kernel_laplacian_mv<<<gr,bl>>>(d_adj, d_deg, d_v1, d_w, n, max_deg);
         double alpha = gpu_dot(d_v1, d_w, n, d_tmp);
-        h_alpha[j] = alpha;
-
-        // w = w - alpha*v1 - beta*v0
-        kernel_axpy<<<grid, block>>>(d_w, d_v1, -alpha, n);
-        if (beta > 0) kernel_axpy<<<grid, block>>>(d_w, d_v0, -beta, n);
-
-        // Orthogonalize against 1 — on GPU, no PCIe transfer
-        double w_sum = gpu_dot(d_w, d_ones, n, d_tmp);
-        double w_mean = w_sum / n;
-        kernel_axpy<<<grid, block>>>(d_w, d_ones, -w_mean, n);
-
-        // beta = ||w||
-        double w_norm_sq = gpu_dot(d_w, d_w, n, d_tmp);
-        beta = sqrt(w_norm_sq);
-        h_beta[j] = beta;
-        actual_k = j + 1;
-
+        al[j] = alpha;
+        kernel_axpy<<<gr,bl>>>(d_w, d_v1, -alpha, n);
+        if (beta > 0) kernel_axpy<<<gr,bl>>>(d_w, d_v0, -beta, n);
+        // Orthogonalize vs 1
+        double ws = gpu_dot(d_w, d_ones, n, d_tmp);
+        kernel_axpy<<<gr,bl>>>(d_w, d_ones, -ws/n, n);
+        double wn = gpu_dot(d_w, d_w, n, d_tmp);
+        beta = sqrt(wn); be[j] = beta; ak = j+1;
         if (beta < 1e-12) break;
-
-        // v0 = v1, v1 = w / beta
-        CUDA_CHECK(cudaMemcpy(d_v0, d_v1, n * sizeof(double), cudaMemcpyDeviceToDevice));
-        double inv_beta = 1.0 / beta;
-        CUDA_CHECK(cudaMemcpy(d_v1, d_w, n * sizeof(double), cudaMemcpyDeviceToDevice));
-        kernel_scale<<<grid, block>>>(d_v1, inv_beta, n);
+        CUDA_CHECK(cudaMemcpy(d_v0, d_v1, n*sizeof(double), cudaMemcpyDeviceToDevice));
+        CUDA_CHECK(cudaMemcpy(d_v1, d_w, n*sizeof(double), cudaMemcpyDeviceToDevice));
+        kernel_scale<<<gr,bl>>>(d_v1, 1.0/beta, n);
     }
 
     // Bisection on tridiagonal for λ₂
     double hi = 0;
-    for (int j = 0; j < actual_k; j++) {
-        double bound = fabs(h_alpha[j]) +
-            (j > 0 ? fabs(h_beta[j-1]) : 0) +
-            (j < actual_k - 1 ? fabs(h_beta[j]) : 0);
-        if (bound > hi) hi = bound;
+    for (int j = 0; j < ak; j++) {
+        double b2 = fabs(al[j]) + (j>0?fabs(be[j-1]):0) + (j<ak-1?fabs(be[j]):0);
+        if (b2 > hi) hi = b2;
     }
-    hi += 1.0;
-    double lo = 0.0;
-
-    for (int bisect = 0; bisect < 100; bisect++) {
-        double mu = (lo + hi) / 2.0;
-        int count = 0;
-        double d_val = h_alpha[0] - mu;
-        if (d_val < 0) count++;
-        for (int j = 1; j < actual_k; j++) {
-            if (fabs(d_val) < 1e-30) d_val = 1e-30;
-            d_val = (h_alpha[j] - mu) - h_beta[j-1] * h_beta[j-1] / d_val;
-            if (d_val < 0) count++;
+    hi += 1; double lo = 0;
+    for (int b2 = 0; b2 < 100; b2++) {
+        double mu = (lo+hi)/2;
+        int cnt = 0; double dv = al[0]-mu;
+        if (dv < 0) cnt++;
+        for (int j = 1; j < ak; j++) {
+            if (fabs(dv) < 1e-30) dv = 1e-30;
+            dv = (al[j]-mu) - be[j-1]*be[j-1]/dv;
+            if (dv < 0) cnt++;
         }
-        if (count >= 2) hi = mu;
-        else lo = mu;
+        if (cnt >= 2) hi = mu; else lo = mu;
     }
 
-    cudaFree(d_ones); free(h_alpha); free(h_beta);
-    cudaFree(d_v0); cudaFree(d_v1); cudaFree(d_w); cudaFree(d_tmp);
-    return (lo + hi) / 2.0;
+    free(h); free(al); free(be);
+    cudaFree(d_v0); cudaFree(d_v1); cudaFree(d_w); cudaFree(d_ones); cudaFree(d_tmp);
+    return (lo+hi)/2;
 }
 
 // ============================================================
 // Main
 // ============================================================
-
 int main(int argc, char **argv) {
-    int d = 4;
-    int max_deg = d * 3 + 4; // enough headroom during init
-
-    // Print GPU info
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-    fprintf(stderr, "GPU: %s (%.1f GB, SM %d.%d)\n",
-            prop.name, prop.totalGlobalMem / 1e9,
-            prop.major, prop.minor);
+    int d = 4, max_deg = d * 3 + 4;
+    cudaDeviceProp prop; cudaGetDeviceProperties(&prop, 0);
+    fprintf(stderr, "GPU: %s (%.1f GB)\n", prop.name, prop.totalGlobalMem/1e9);
 
     if (argc >= 3 && strcmp(argv[1], "--sweep") != 0) {
-        int n = atoi(argv[1]);
-        d = atoi(argv[2]);
-        max_deg = d * 3 + 4;
-        uint64_t seed = argc >= 4 ? (uint64_t)atoll(argv[3]) : 42;
-        double ram = d - 2.0 * sqrt(d - 1.0);
-        long long m = (long long)n * d / 2;
-        long long mem_mb = (long long)n * max_deg * 4 / (1024*1024);
+        int n = atoi(argv[1]); d = atoi(argv[2]); max_deg = d*3+4;
+        uint64_t seed = argc >= 4 ? atoll(argv[3]) : 42;
+        double ram = d - 2*sqrt(d-1);
+        long long m = (long long)n*d/2;
 
-        printf("n=%d d=%d m=%lld Ram=%.4f GPU_mem=~%lldMB\n",
-               n, d, m, ram, mem_mb);
+        printf("n=%d d=%d m=%lld Ram=%.4f\n", n, d, m, ram);
 
-        // Allocate on GPU
-        int *d_adj, *d_deg, *d_count;
-        CUDA_CHECK(cudaMalloc(&d_adj, (long long)n * max_deg * sizeof(int)));
-        CUDA_CHECK(cudaMalloc(&d_deg, n * sizeof(int)));
-        CUDA_CHECK(cudaMalloc(&d_count, sizeof(int)));
-        CUDA_CHECK(cudaMemset(d_adj, 0xFF, (long long)n * max_deg * sizeof(int))); // -1
-        CUDA_CHECK(cudaMemset(d_deg, 0, n * sizeof(int)));
-        CUDA_CHECK(cudaMemset(d_count, 0, sizeof(int)));
+        struct timespec t0,t1,t2,t3;
+        int *h_adj = (int*)malloc((long long)n*max_deg*sizeof(int));
+        int *h_deg = (int*)malloc(n*sizeof(int));
 
-        // Phase 1: random init on GPU
-        cudaEvent_t t0, t1, t2, t3;
-        cudaEventCreate(&t0); cudaEventCreate(&t1);
-        cudaEventCreate(&t2); cudaEventCreate(&t3);
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        phase1_init(h_adj, h_deg, n, d, max_deg, seed);
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        printf("Phase 1: %.2fs\n", (t1.tv_sec-t0.tv_sec)+(t1.tv_nsec-t0.tv_nsec)/1e9);
 
-        cudaEventRecord(t0);
-        int threads = 256;
-        int blocks = 1024;
-        long long edges_per_thread = (m * 3) / (blocks * threads) + 1;
-        kernel_random_init<<<blocks, threads>>>(
-            d_adj, d_deg, n, d, max_deg, edges_per_thread, seed, d_count, m);
-        cudaEventRecord(t1);
-        cudaEventSynchronize(t1);
+        phase2_regularize(h_adj, h_deg, n, d, max_deg);
+        clock_gettime(CLOCK_MONOTONIC, &t2);
+        printf("Phase 2: %.2fs\n", (t2.tv_sec-t1.tv_sec)+(t2.tv_nsec-t1.tv_nsec)/1e9);
 
-        int h_count;
-        CUDA_CHECK(cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-        float init_ms;
-        cudaEventElapsedTime(&init_ms, t0, t1);
-        printf("Phase 1: %d/%lld edges (%.2fs)\n", h_count, m, init_ms / 1000);
-
-        // Phase 2: parallel regularize on GPU
-        cudaEventRecord(t1);
-        gpu_regularize(d_adj, d_deg, n, d, max_deg);
-        cudaEventRecord(t2);
-        cudaEventSynchronize(t2);
-
-        int *h_deg = (int*)malloc(n * sizeof(int));
-        CUDA_CHECK(cudaMemcpy(h_deg, d_deg, n * sizeof(int), cudaMemcpyDeviceToHost));
         int reg = 1;
         for (int i = 0; i < n; i++) if (h_deg[i] != d) { reg = 0; break; }
-        float reg_ms;
-        cudaEventElapsedTime(&reg_ms, t1, t2);
-        printf("Phase 2: regularize (%.2fs) regular=%s\n",
-               reg_ms / 1000, reg ? "YES" : "NO");
+        printf("Regular: %s\n", reg?"YES":"NO");
 
-        // Phase 3: Lanczos on GPU
-        int lanczos_k = 500;
-        if (n > 500000) lanczos_k = 800;
-        cudaEventRecord(t2);
-        double l2 = gpu_lanczos_lambda2(d_adj, d_deg, n, max_deg, lanczos_k);
-        cudaEventRecord(t3);
-        cudaEventSynchronize(t3);
-        float eig_ms;
-        cudaEventElapsedTime(&eig_ms, t2, t3);
+        // Copy to GPU for eigensolve
+        int *d_adj, *d_deg;
+        CUDA_CHECK(cudaMalloc(&d_adj, (long long)n*max_deg*sizeof(int)));
+        CUDA_CHECK(cudaMalloc(&d_deg, n*sizeof(int)));
+        CUDA_CHECK(cudaMemcpy(d_adj, h_adj, (long long)n*max_deg*sizeof(int), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemcpy(d_deg, h_deg, n*sizeof(int), cudaMemcpyHostToDevice));
 
-        float total_ms;
-        cudaEventElapsedTime(&total_ms, t0, t3);
-        printf("Phase 3: λ₂≈%.6f Ram=%.6f ratio=%.2fx (%.2fs)\n",
-               l2, ram, l2/ram, eig_ms / 1000);
+        int k = n < 100000 ? 300 : (n < 1000000 ? 500 : 800);
+        srand(999);
+        double l2 = gpu_lanczos(d_adj, d_deg, n, max_deg, k);
+        clock_gettime(CLOCK_MONOTONIC, &t3);
+        printf("Phase 3: λ₂≈%.6f ratio=%.2fx (%.2fs)\n", l2, l2/ram,
+               (t3.tv_sec-t2.tv_sec)+(t3.tv_nsec-t2.tv_nsec)/1e9);
         printf("RESULT: n=%d d=%d lambda2=%.6f ratio=%.4f regular=%s total=%.2fs\n",
-               n, d, l2, l2/ram, reg?"YES":"NO", total_ms/1000);
+               n, d, l2, l2/ram, reg?"YES":"NO",
+               (t3.tv_sec-t0.tv_sec)+(t3.tv_nsec-t0.tv_nsec)/1e9);
 
-        free(h_deg);
-        cudaFree(d_adj); cudaFree(d_deg); cudaFree(d_count);
-        cudaEventDestroy(t0); cudaEventDestroy(t1);
-        cudaEventDestroy(t2); cudaEventDestroy(t3);
+        free(h_adj); free(h_deg); cudaFree(d_adj); cudaFree(d_deg);
 
     } else {
-        // Sweep powers of 2
-        double ram = d - 2.0 * sqrt(d - 1.0);
+        double ram = d - 2*sqrt(d-1);
         printf("%10s %3s | %8s %8s %8s | %8s %6s | %8s\n",
-               "n", "d", "init_s", "reg_s", "eig_s", "lambda2", "ratio", "total");
+               "n","d","init_s","reg_s","eig_s","lambda2","ratio","total");
         printf("-------------------------------------------------------------------\n");
 
         for (int logn = 5; logn <= 22; logn++) {
             int n = 1 << logn;
-            long long m = (long long)n * d / 2;
-            long long mem = (long long)n * max_deg * sizeof(int);
-            if (mem > 80ULL * 1024 * 1024 * 1024) {
-                printf("%10d — skipped (%.1f GB > GPU mem)\n", n, mem / 1e9);
-                continue;
-            }
+            max_deg = d*3+4;
+            long long m = (long long)n*d/2;
+            int *h_adj = (int*)malloc((long long)n*max_deg*sizeof(int));
+            int *h_deg = (int*)malloc(n*sizeof(int));
+            if (!h_adj || !h_deg) { printf("OOM at n=%d\n", n); break; }
 
-            int *d_adj, *d_deg, *d_count;
-            CUDA_CHECK(cudaMalloc(&d_adj, (long long)n * max_deg * sizeof(int)));
-            CUDA_CHECK(cudaMalloc(&d_deg, n * sizeof(int)));
-            CUDA_CHECK(cudaMalloc(&d_count, sizeof(int)));
-            CUDA_CHECK(cudaMemset(d_adj, 0xFF, (long long)n * max_deg * sizeof(int)));
-            CUDA_CHECK(cudaMemset(d_deg, 0, n * sizeof(int)));
-            CUDA_CHECK(cudaMemset(d_count, 0, sizeof(int)));
+            struct timespec t0,t1,t2,t3;
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+            phase1_init(h_adj, h_deg, n, d, max_deg, 42);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            double is = (t1.tv_sec-t0.tv_sec)+(t1.tv_nsec-t0.tv_nsec)/1e9;
 
-            cudaEvent_t t0, t1, t2, t3;
-            cudaEventCreate(&t0); cudaEventCreate(&t1);
-            cudaEventCreate(&t2); cudaEventCreate(&t3);
+            phase2_regularize(h_adj, h_deg, n, d, max_deg);
+            clock_gettime(CLOCK_MONOTONIC, &t2);
+            double rs = (t2.tv_sec-t1.tv_sec)+(t2.tv_nsec-t1.tv_nsec)/1e9;
 
-            // Phase 1
-            cudaEventRecord(t0);
-            int threads = 256, blocks = min(1024, (int)(m / 256 + 1));
-            long long ept = (m * 3) / (blocks * threads) + 1;
-            kernel_random_init<<<blocks, threads>>>(
-                d_adj, d_deg, n, d, max_deg, ept, 42, d_count, m);
-            cudaEventRecord(t1);
-            cudaEventSynchronize(t1);
-            float init_ms;
-            cudaEventElapsedTime(&init_ms, t0, t1);
-
-            // Phase 2 on GPU (parallel)
-            cudaEventRecord(t1);
-            gpu_regularize(d_adj, d_deg, n, d, max_deg);
-            cudaEventRecord(t2);
-            cudaEventSynchronize(t2);
-            float reg_ms;
-            cudaEventElapsedTime(&reg_ms, t1, t2);
-
-            int *h_deg = (int*)malloc(n * sizeof(int));
-            CUDA_CHECK(cudaMemcpy(h_deg, d_deg, n * sizeof(int), cudaMemcpyDeviceToHost));
             int reg = 1;
             for (int i = 0; i < n; i++) if (h_deg[i] != d) { reg = 0; break; }
 
-            // Phase 3
+            int *d_adj, *d_deg;
+            CUDA_CHECK(cudaMalloc(&d_adj, (long long)n*max_deg*sizeof(int)));
+            CUDA_CHECK(cudaMalloc(&d_deg, n*sizeof(int)));
+            CUDA_CHECK(cudaMemcpy(d_adj, h_adj, (long long)n*max_deg*sizeof(int), cudaMemcpyHostToDevice));
+            CUDA_CHECK(cudaMemcpy(d_deg, h_deg, n*sizeof(int), cudaMemcpyHostToDevice));
+
             int k = logn <= 14 ? 300 : (logn <= 18 ? 500 : 800);
-            cudaEventRecord(t2);
-            double l2 = gpu_lanczos_lambda2(d_adj, d_deg, n, max_deg, k);
-            cudaEventRecord(t3);
-            cudaEventSynchronize(t3);
-            float eig_ms, total_ms;
-            cudaEventElapsedTime(&eig_ms, t2, t3);
-            cudaEventElapsedTime(&total_ms, t0, t3);
+            srand(999);
+            double l2 = gpu_lanczos(d_adj, d_deg, n, max_deg, k);
+            clock_gettime(CLOCK_MONOTONIC, &t3);
+            double es = (t3.tv_sec-t2.tv_sec)+(t3.tv_nsec-t2.tv_nsec)/1e9;
+            double tot = (t3.tv_sec-t0.tv_sec)+(t3.tv_nsec-t0.tv_nsec)/1e9;
 
             printf("%10d %3d | %8.2f %8.2f %8.2f | %8.4f %5.2fx | %8.2f%s\n",
-                   n, d, init_ms/1000, reg_ms/1000, eig_ms/1000,
-                   l2, l2/ram, total_ms/1000, reg ? "" : " BAD");
+                   n, d, is, rs, es, l2, l2/ram, tot, reg?"":" BAD");
             fflush(stdout);
 
-            free(h_deg);
-            cudaFree(d_adj); cudaFree(d_deg); cudaFree(d_count);
-            cudaEventDestroy(t0); cudaEventDestroy(t1);
-            cudaEventDestroy(t2); cudaEventDestroy(t3);
-
-            if (total_ms > 3600000) { printf("(>1hr, stopping)\n"); break; }
+            free(h_adj); free(h_deg); cudaFree(d_adj); cudaFree(d_deg);
+            if (tot > 3600) { printf("(>1hr)\n"); break; }
         }
     }
     return 0;
