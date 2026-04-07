@@ -441,75 +441,10 @@ def build_qrsdr(n, d):
 
 
 # =====================================================================
-# Base-(k+1) time-varying topology (placeholder)
+# Base-(k+1) time-varying topology
+# Real implementation in base_graph.py (ported from Takezawa et al.)
 # =====================================================================
-
-def build_base_graph(n, k, seed=0):
-    """
-    Build Base-(k+1) time-varying topology.
-
-    Returns a list of adjacency matrices, one per round in the sequence.
-    The train loop cycles through them: W_list[t % len(W_list)].
-
-    TODO: Implement the full Base-(k+1) algorithm from
-    https://github.com/yukiTakezawa/BaseGraph
-    (Algorithm 3 from Takezawa et al., "Beyond Spectral Gap:
-    The Role of the Topology in Decentralized Learning", NeurIPS 2024).
-
-    Current placeholder: decomposes a random d-regular graph into k
-    approximate matchings, each used as one round in the time-varying
-    sequence. This gives a valid time-varying topology with the correct
-    degree budget, but does NOT have the optimal spectral properties
-    of the true Base-(k+1) construction.
-    """
-    d = k  # degree parameter matches k
-    if (n * d) % 2 != 0:
-        # Make d even if needed
-        d = d + 1 if d % 2 == 1 and (n * (d + 1)) % 2 == 0 else d
-
-    # Generate a single d-regular graph
-    try:
-        full_adj = build_random_regular(n, d, seed=seed)
-    except (ValueError, RuntimeError):
-        # Fallback: use QRS-DR if random regular fails
-        full_adj = build_qrsdr(n, d)
-
-    # Decompose into approximate matchings by edge coloring
-    # Greedy edge coloring: assign each edge to one of k color classes
-    adj_list = [np.zeros((n, n), dtype=np.uint8) for _ in range(k)]
-
-    # Collect all edges
-    edges = []
-    for i in range(n):
-        for j in range(i + 1, n):
-            if full_adj[i, j]:
-                edges.append((i, j))
-
-    # Greedy assignment: assign each edge to the color with fewest
-    # edges incident to either endpoint
-    color_degree = np.zeros((k, n), dtype=int)  # color x node -> degree
-    for u, v in edges:
-        # Find the color where both u and v have the smallest max degree
-        best_color = 0
-        best_cost = color_degree[0, u] + color_degree[0, v]
-        for c in range(1, k):
-            cost = color_degree[c, u] + color_degree[c, v]
-            if cost < best_cost:
-                best_cost = cost
-                best_color = c
-        adj_list[best_color][u, v] = 1
-        adj_list[best_color][v, u] = 1
-        color_degree[best_color, u] += 1
-        color_degree[best_color, v] += 1
-
-    # Remove empty rounds
-    adj_list = [a for a in adj_list if a.sum() > 0]
-
-    if len(adj_list) == 0:
-        # Fallback: single static graph
-        adj_list = [full_adj]
-
-    return adj_list
+# See base_graph.py for the full implementation.
 
 
 # =====================================================================
@@ -575,25 +510,48 @@ def get_topology(name, n, d=4, seed=0):
     elif name == "qrsdr":
         adj = build_qrsdr(n, d)
     elif name == "base":
-        adj_list = build_base_graph(n, k=d, seed=seed)
+        # Use the REAL Base-(k+1) implementation (Takezawa et al. NeurIPS 2023)
+        from base_graph import build_base_graph as build_real_base
+        from base_graph import verify_finite_time_consensus
 
-        W_list = []
-        for a in adj_list:
-            W = equal_neighbor_weights(a)
-            W_list.append(torch.from_numpy(W).float())
+        W_np_list = build_real_base(n, k=d)
 
-        # Compute effective mixing: product of all W matrices in sequence
-        W_product = np.eye(n)
-        for a in adj_list:
-            W_product = W_product @ equal_neighbor_weights(a)
+        # Verify finite-time consensus
+        ok, err = verify_finite_time_consensus(W_np_list)
+        if not ok:
+            print(f"WARNING: Base-(k+1) FTC verification failed: err={err:.2e}")
 
-        total_edges = sum(int(a.sum()) // 2 for a in adj_list)
+        # Convert to torch tensors
+        W_list = [torch.from_numpy(W).float() for W in W_np_list]
+
+        # Build adjacency matrices from W matrices (for metadata)
+        adj_list = []
+        for W in W_np_list:
+            adj = (np.abs(W) > 1e-12).astype(np.uint8)
+            np.fill_diagonal(adj, 0)
+            adj_list.append(adj)
+
+        # Compute effective mixing: product of all W matrices
+        W_product = np.eye(n, dtype=np.float64)
+        for W in W_np_list:
+            W_product = W @ W_product
+
+        # Max degree across all rounds
+        max_deg = max(int((np.abs(W) > 1e-12).sum(axis=1).max()) - 1
+                      for W in W_np_list)
+
+        # Stacked adjacency for lambda2
+        adj_stacked = np.zeros((n, n), dtype=np.uint8)
+        for adj in adj_list:
+            adj_stacked = np.maximum(adj_stacked, adj)
+
         meta = {
-            "lambda2": compute_lambda2(adj_list[0]),
+            "lambda2": compute_lambda2(adj_stacked),
             "spectral_gap": compute_spectral_gap(W_product),
-            "edges": total_edges,
-            "degree": d,
-            "num_rounds": len(adj_list),
+            "edges": int(adj_stacked.sum()) // 2,
+            "degree": max_deg,
+            "num_rounds": len(W_np_list),
+            "ftc_verified": ok,
         }
 
         return TimeVaryingTopology(W_list, adj_list, meta)
