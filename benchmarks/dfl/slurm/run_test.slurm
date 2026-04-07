@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=dfl_test
-#SBATCH --partition=b40x4
+#SBATCH --partition=b40x4-long
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
 #SBATCH --time=0-12:00:00
-#SBATCH --output=logs/dfl_test_%j.log
+#SBATCH --output=logs/dfl_test.log
 
 # Quick test: run all 6 topologies on CIFAR-100, n=32, d=4, alpha=0.1, seed=0
 # ~30min per topology, ~3 hours total
