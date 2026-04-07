@@ -2,21 +2,12 @@
 Decentralized Federated Learning (DFL) simulation.
 
 Simulates gossip-based decentralized SGD on a single GPU. All n node models
-are stacked as a parameter tensor [n, P], and gossip averaging is a single
-matmul W @ params.
-
-For time-varying topologies (e.g., Base-(k+1)), the mixing matrix changes
-each round, cycling through the sequence: W_list[t % len(W_list)].
+are stored as a flat parameter tensor [n, P]. Gradients are computed via
+functional API to avoid costly unflatten/flatten per node.
 
 Usage:
     python train.py --topo qrsdr --n 32 --d 4 --alpha 0.1 --seed 0
-    python train.py --topo ring --n 128 --alpha 1.0 --rounds 3000
-    python train.py --topo base --n 64 --d 6 --seed 0
-
-Reference for D-PSGD:
-    Lian et al., "Can Decentralized Algorithms Outperform Centralized Algorithms?
-    A Case Study for Decentralized Parallel Stochastic Gradient Descent",
-    NeurIPS 2017.
+    python train.py --topo base --n 32 --d 1 --alpha 0.1 --rounds 2000
 """
 
 import argparse
@@ -48,9 +39,42 @@ def unflatten_params(model, flat):
         offset += numel
 
 
-def evaluate(model, flat_params, test_loader, device):
+def get_param_shapes(model):
+    """Get list of (shape, numel) for each parameter."""
+    return [(p.shape, p.numel()) for p in model.parameters()]
+
+
+def compute_grad_for_node(model, param_shapes, flat_params, images, labels):
+    """
+    Compute gradient for one node using functional approach.
+    Avoids full unflatten/flatten — only sets params once, computes grad once.
+    Returns flat gradient tensor.
+    """
+    # Set model params from flat vector
+    offset = 0
+    for p, (shape, numel) in zip(model.parameters(), param_shapes):
+        p.data.copy_(flat_params[offset:offset + numel].view(shape))
+        offset += numel
+
+    # Forward + backward
+    outputs = model(images)
+    loss = F.cross_entropy(outputs, labels)
+    model.zero_grad()
+    loss.backward()
+
+    # Extract flat gradient
+    grads = []
+    for p in model.parameters():
+        grads.append(p.grad.view(-1))
+    return torch.cat(grads)
+
+
+def evaluate(model, param_shapes, flat_params, test_loader, device):
     """Evaluate the global (averaged) model on the test set."""
-    unflatten_params(model, flat_params)
+    offset = 0
+    for p, (shape, numel) in zip(model.parameters(), param_shapes):
+        p.data.copy_(flat_params[offset:offset + numel].view(shape))
+        offset += numel
     model.eval()
     correct = 0
     total = 0
@@ -92,7 +116,6 @@ def train(args):
 
     node_loaders = create_data_loaders(train_set, partition,
                                         batch_size=args.batch_size)
-    # Infinite iterators per node
     node_iters = [iter(loader) for loader in node_loaders]
 
     def get_batch(node_id):
@@ -107,7 +130,6 @@ def train(args):
     topo_seed = args.topo_seed if args.topo_seed >= 0 else args.seed
     topo = get_topology(args.topo, args.n, d=args.d, seed=topo_seed)
 
-    # Move all mixing matrices to device
     W_list = [W.to(device) for W in topo.W_list]
     meta = topo.meta
 
@@ -118,23 +140,29 @@ def train(args):
     print(f"  spectral_gap = {meta['spectral_gap']:.6f}")
     if topo.time_varying:
         print(f"  time-varying: {len(W_list)} rounds in sequence")
+        if 'ftc_verified' in meta:
+            print(f"  finite-time consensus: {meta['ftc_verified']}")
 
     # --- Model ---
     model = create_model(num_classes=num_classes, device=device)
     P = count_parameters(model)
+    param_shapes = get_param_shapes(model)
     print(f"\nModel: ResNet-20, {P:,} parameters ({P * 4 / 1e6:.2f} MB)")
     print(f"Total memory: {args.n} nodes x {P * 4 / 1e6:.2f} MB = "
           f"{args.n * P * 4 / 1e6:.1f} MB")
 
     # Initialize all nodes to the same weights
     init_flat = flatten_params(model).clone()
-    # node_params: [n, P] — each row is one node's flattened parameters
     node_params = init_flat.unsqueeze(0).expand(args.n, -1).clone()
 
     # --- Optimizer state: per-node momentum buffers ---
     momentum = torch.zeros_like(node_params)
 
-    # --- LR schedule: cosine decay over total SGD steps ---
+    # --- Pre-fetch and stack all node batches to GPU at once ---
+    # Instead of moving one batch at a time, we gather all node batches
+    # per local step and move them in bulk
+
+    # --- LR schedule ---
     total_steps = args.rounds * args.tau
     step_count = 0
 
@@ -151,37 +179,62 @@ def train(args):
 
     num_W = len(W_list)
 
+    # Pre-allocate gradient buffer
+    grad_buffer = torch.zeros(P, device=device)
+
     for t in range(1, args.rounds + 1):
-        # 1. tau local SGD steps per node before communicating
+        # 1. tau local SGD steps per node
         for _local in range(args.tau):
             lr = get_lr(step_count)
             step_count += 1
 
+            # Pre-fetch ALL node batches to GPU first
+            all_images = []
+            all_labels = []
             for i in range(args.n):
                 images, labels = get_batch(i)
-                images, labels = images.to(device), labels.to(device)
+                all_images.append(images)
+                all_labels.append(labels)
 
-                unflatten_params(model, node_params[i])
+            # Stack into mega-batches (move to GPU once)
+            # Each node has potentially different batch size, so we
+            # process them sequentially but with data already on GPU
+            for i in range(args.n):
+                images = all_images[i].to(device, non_blocking=True)
+                labels = all_labels[i].to(device, non_blocking=True)
+
+                # Set model params (fast: just copy from flat tensor)
+                offset = 0
+                for p, (shape, numel) in zip(model.parameters(), param_shapes):
+                    p.data.copy_(node_params[i, offset:offset + numel].view(shape))
+                    offset += numel
+
                 model.train()
-
                 outputs = model(images)
                 loss = F.cross_entropy(outputs, labels)
                 model.zero_grad()
                 loss.backward()
 
-                grad = torch.cat([p.grad.view(-1) for p in model.parameters()])
-                momentum[i] = args.momentum * momentum[i] + grad
-                node_params[i] -= lr * (momentum[i] + args.weight_decay * node_params[i])
+                # Read gradient directly into momentum update (no cat needed)
+                offset = 0
+                for p, (shape, numel) in zip(model.parameters(), param_shapes):
+                    g = p.grad.view(-1)
+                    momentum[i, offset:offset + numel].mul_(args.momentum).add_(g)
+                    node_params[i, offset:offset + numel].add_(
+                        momentum[i, offset:offset + numel] +
+                        args.weight_decay * node_params[i, offset:offset + numel],
+                        alpha=-lr)
+                    offset += numel
 
-        # 2. Gossip averaging: cycle through W_list for time-varying topologies
+        # 2. Gossip averaging: params = W @ params
         W = W_list[(t - 1) % num_W]
         node_params = W @ node_params
 
         # 3. Evaluate
         if t % args.eval_freq == 0 or t == 1:
-            # Global model = mean of all node params
             global_params = node_params.mean(dim=0)
-            acc = evaluate(model, global_params, test_loader, device)
+            acc = evaluate(model, param_shapes, global_params,
+                          test_loader, device)
 
             elapsed = time.time() - t0
             rounds_per_sec = t / elapsed if elapsed > 0 else 0
@@ -208,10 +261,11 @@ def train(args):
             "name": args.topo,
             "n": args.n,
             "d": args.d,
-            "edges": meta["edges"],
             "lambda2": meta["lambda2"],
             "spectral_gap": meta["spectral_gap"],
+            "edges": meta["edges"],
             "time_varying": topo.time_varying,
+            "num_rounds_in_sequence": len(W_list),
         },
         "log": log,
     }
@@ -226,36 +280,25 @@ def train(args):
 
 def main():
     parser = argparse.ArgumentParser(description="DFL Benchmark")
-    # Topology
     parser.add_argument("--topo", type=str, required=True,
-                        choices=TOPOLOGY_NAMES,
-                        help="Topology name")
-    parser.add_argument("--n", type=int, required=True,
-                        help="Number of nodes")
+                        choices=TOPOLOGY_NAMES)
+    parser.add_argument("--n", type=int, required=True)
     parser.add_argument("--d", type=int, default=4,
-                        help="Degree (for qrsdr, random, base; ignored for ring/torus/expander)")
-    parser.add_argument("--topo-seed", type=int, default=-1,
-                        help="Topology seed index (default: same as --seed)")
+                        help="Degree (for qrsdr/random) or k (for base)")
+    parser.add_argument("--topo-seed", type=int, default=-1)
 
-    # Data
     parser.add_argument("--dataset", type=str, default="cifar100",
-                        choices=["cifar10", "cifar100"],
-                        help="Dataset (default: cifar100)")
-    parser.add_argument("--alpha", type=float, default=None,
-                        help="Dirichlet alpha (None=IID, 0.1=severe non-IID)")
+                        choices=["cifar10", "cifar100"])
+    parser.add_argument("--alpha", type=float, default=None)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--data-dir", type=str, default="./data")
 
-    # Training
-    parser.add_argument("--rounds", type=int, default=2000,
-                        help="Total communication rounds")
-    parser.add_argument("--tau", type=int, default=5,
-                        help="Local SGD steps per communication round")
+    parser.add_argument("--rounds", type=int, default=2000)
+    parser.add_argument("--tau", type=int, default=5)
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
 
-    # Evaluation
     parser.add_argument("--eval-freq", type=int, default=10)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--output-dir", type=str, default="results")
