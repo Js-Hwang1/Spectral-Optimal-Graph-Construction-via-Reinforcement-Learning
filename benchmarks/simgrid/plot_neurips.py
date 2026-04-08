@@ -34,14 +34,14 @@ plt.rcParams.update({
     "grid.alpha": 0.4,
 })
 
-TOPOS = ["qrsdr", "base", "ring", "random"]
-NAMES = {"qrsdr": "QRS-DR (ours)", "base": r"Base-$(k\!+\!1)$",
+TOPOS = ["ours", "base", "ring", "random"]
+NAMES = {"ours": "Ours", "base": r"Base-$(k\!+\!1)$",
          "ring": "Ring", "random": "Random $d$-reg"}
-COLORS = {"qrsdr": "#c0392b", "base": "#2980b9",
+COLORS = {"ours": "#c0392b", "base": "#2980b9",
           "ring": "#27ae60", "random": "#e67e22"}
-LS = {"qrsdr": "-", "base": "--", "ring": "-.", "random": ":"}
-MK = {"qrsdr": "o", "base": "s", "ring": "^", "random": "D"}
-ZO = {"qrsdr": 10, "base": 5, "ring": 3, "random": 4}  # zorder
+LS = {"ours": "-", "base": "--", "ring": "-.", "random": ":"}
+MK = {"ours": "o", "base": "s", "ring": "^", "random": "D"}
+ZO = {"ours": 10, "base": 5, "ring": 3, "random": 4}  # zorder
 
 
 def load(path):
@@ -254,8 +254,8 @@ def combined_figure(rdir, odir):
     plot_configs = [
         ("base",  "0.0",  1.0, "-",  r"Base-$(k\!+\!1)$, 0\%"),
         ("base",  "0.10", 0.6, ":",  r"Base-$(k\!+\!1)$, 10\%"),
-        ("qrsdr", "0.0",  1.0, "-",  "QRS-DR, 0\\%"),
-        ("qrsdr", "0.10", 0.6, "--", "QRS-DR, 10\\%"),
+        ("ours", "0.0",  1.0, "-",  "Ours, 0\\%"),
+        ("ours", "0.10", 0.6, "--", "Ours, 10\\%"),
     ]
     for topo, fr_str, alpha_val, lstyle, lbl in plot_configs:
         p = os.path.join(rdir, "exp2_failure", f"{topo}_fr{fr_str}.json")

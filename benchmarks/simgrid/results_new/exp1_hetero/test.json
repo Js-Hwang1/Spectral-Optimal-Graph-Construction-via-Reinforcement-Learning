@@ -1,0 +1,28 @@
+{
+  "config": {
+    "topology": "ours",
+    "n": 64,
+    "d": 4,
+    "rounds": 10,
+    "msg_size": 1000000,
+    "compute_flops": 1e+09,
+    "fail_rate": 0,
+    "straggler_frac": 0,
+    "straggler_slowdown": 10,
+    "seed": 42,
+    "platform": "platforms/3tier_64.xml",
+    "one_peer": false
+  },
+  "rounds": [
+    {"round": 0, "wall_clock": 2.24875, "consensus_error": 0.233343, "max_error": 2.04433},
+    {"round": 1, "wall_clock": 4.49749, "consensus_error": 0.104334, "max_error": 0.920241},
+    {"round": 2, "wall_clock": 6.74624, "consensus_error": 0.0563924, "max_error": 0.510329},
+    {"round": 3, "wall_clock": 8.99499, "consensus_error": 0.0342159, "max_error": 0.311319},
+    {"round": 4, "wall_clock": 11.2437, "consensus_error": 0.0223767, "max_error": 0.199685},
+    {"round": 5, "wall_clock": 13.4925, "consensus_error": 0.0153784, "max_error": 0.132348},
+    {"round": 6, "wall_clock": 15.7412, "consensus_error": 0.0109271, "max_error": 0.0899566},
+    {"round": 7, "wall_clock": 17.99, "consensus_error": 0.00794301, "max_error": 0.0624337},
+    {"round": 8, "wall_clock": 20.2387, "consensus_error": 0.00586576, "max_error": 0.0441058},
+    {"round": 9, "wall_clock": 22.4875, "consensus_error": 0.0043805, "max_error": 0.0316295}
+  ]
+}

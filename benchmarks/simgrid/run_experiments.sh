@@ -22,7 +22,7 @@ MSG_SIZE=1000000
 COMPUTE_FLOPS=1e9
 SEED=42
 
-TOPOLOGIES="qrsdr base ring random"
+TOPOLOGIES="ours base ring random expgraph equitopo torus"
 
 echo "============================================"
 echo " SimGrid Decentralized Learning Experiments"

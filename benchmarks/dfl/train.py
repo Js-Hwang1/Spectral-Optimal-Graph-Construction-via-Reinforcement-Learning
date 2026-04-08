@@ -6,7 +6,7 @@ Uses torch.vmap to vectorize forward+backward across all n nodes
 in parallel — no sequential per-node loop.
 
 Usage:
-    python train.py --topo qrsdr --n 32 --d 4 --alpha 0.1 --seed 0
+    python train.py --topo ours --n 32 --d 4 --alpha 0.1 --seed 0
 """
 
 import argparse

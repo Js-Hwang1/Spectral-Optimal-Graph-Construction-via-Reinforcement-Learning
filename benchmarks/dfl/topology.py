@@ -9,7 +9,7 @@ Supported topologies:
   - torus:    2D torus grid (d=4)
   - expander: Exponential graph (d=ceil(log2(n)))
   - random:   Random d-regular via pairing model
-  - qrsdr:    QRS-DR (our algorithm)
+  - ours:     Random init + degree equalization (our algorithm)
   - base:     Base-(k+1) time-varying topology
 
 Reference for Metropolis-Hastings mixing weights:
@@ -230,64 +230,31 @@ def build_random_regular(n, d, seed=0):
 
 
 # =====================================================================
-# QRS-DR (our algorithm) — ported from PoC/qrs_deterministic.py
+# Our algorithm: random init (m=nd/2 edges) + degree regularization
 # =====================================================================
 
-def next_prime(n):
-    """Smallest prime > n."""
-    if n <= 1:
-        return 2
-    p = n if n % 2 == 1 else n + 1
-    while True:
-        if all(p % f != 0 for f in range(2, int(p**0.5) + 1)):
-            return p
-        p += 2
-
-
-def primitive_root(p):
-    """Smallest primitive root modulo p."""
-    if p == 2:
-        return 1
-    pm1 = p - 1
-    factors = set()
-    tmp = pm1
-    d = 2
-    while d * d <= tmp:
-        while tmp % d == 0:
-            factors.add(d)
-            tmp //= d
-        d += 1
-    if tmp > 1:
-        factors.add(tmp)
-    for g in range(2, p):
-        if all(pow(g, pm1 // f, p) != 1 for f in factors):
-            return g
-    return 2
-
-
-def qr_scatter(n, d):
-    """QRS-DR Phase 1: QR scatter."""
+def random_edge_init(n, d, seed=0):
+    """
+    Phase 1: Generate exactly m = nd/2 edges uniformly at random.
+    No surplus, no deficit.
+    """
+    m = n * d // 2
+    rng = np.random.RandomState(seed)
     adj = np.zeros((n, n), dtype=np.uint8)
-    p = next_prime(n + 1)
-    g = primitive_root(p)
-
-    for k in range(d):
-        c = pow(g, k + 1, p)
-        for i in range(n):
-            t = (i + 1) % p
-            if t == 0:
-                t = 1
-            j = (t * (t + c)) % p % n
-            if j == i:
-                j = (j + 1) % n
+    count = 0
+    while count < m:
+        i = rng.randint(0, n)
+        j = rng.randint(0, n)
+        if i != j and adj[i, j] == 0:
             adj[i, j] = 1
             adj[j, i] = 1
+            count += 1
     return adj
 
 
 def regularize_deterministic(adj, d):
     """
-    QRS-DR Phase 2: Fully deterministic degree regularization.
+    Phase 2: Fully deterministic degree equalization.
     All tie-breaking uses LOWEST NODE INDEX.
     """
     n = adj.shape[0]
@@ -429,15 +396,160 @@ def regularize_deterministic(adj, d):
     return adj
 
 
-def build_qrsdr(n, d):
+def build_ours(n, d, seed=0):
     """
-    Build QRS-DR adjacency matrix.
-    Phase 1: QR scatter, Phase 2: deterministic regularization.
+    Build our adjacency matrix.
+    Phase 1: random edge init (m=nd/2 edges), Phase 2: degree equalization.
     Returns n x n uint8 adjacency matrix.
     """
-    adj = qr_scatter(n, d)
+    adj = random_edge_init(n, d, seed=seed)
     adj = regularize_deterministic(adj, d)
     return adj.astype(np.uint8)
+
+
+# =====================================================================
+# ExpGraph — TIME-VARYING one-peer exponential graph
+# (Ying et al., "Exponential Graph is Provably Efficient for
+#  Decentralized Deep Training", NeurIPS 2021)
+#
+# L = ceil(log2(n)) matchings.
+# Round k: node i pairs with node i XOR 2^k  (power-of-2 n)
+#          or uses cyclic shift i ± 2^k mod n (general n).
+# Each round is one-peer gossip: W = (1-alpha)*I + alpha*P.
+# =====================================================================
+
+def build_expgraph_tv(n, alpha=0.5):
+    """
+    Build time-varying ExpGraph topology.
+
+    Returns list of (W, adj) pairs, one per matching round.
+    For power-of-2 n: L = log2(n) perfect matchings via XOR.
+    For general n: L = ceil(log2(n)) rounds with cyclic shift (degree 2).
+    """
+    L = math.ceil(math.log2(n)) if n > 1 else 1
+    is_pow2 = (n & (n - 1)) == 0
+
+    W_list = []
+    adj_list = []
+
+    for k in range(L):
+        step = 1 << k
+        adj = np.zeros((n, n), dtype=np.uint8)
+
+        if is_pow2:
+            # XOR matching: i pairs with i ^ step (involution)
+            paired = [False] * n
+            for i in range(n):
+                if paired[i]:
+                    continue
+                j = i ^ step
+                if j < n and j != i:
+                    adj[i, j] = 1
+                    adj[j, i] = 1
+                    paired[i] = True
+                    paired[j] = True
+        else:
+            # General n: cyclic shift ±step (degree 2 per round)
+            for i in range(n):
+                j_fwd = (i + step) % n
+                j_bwd = (i - step) % n
+                if j_fwd != i:
+                    adj[i, j_fwd] = 1
+                    adj[j_fwd, i] = 1
+                if j_bwd != i:
+                    adj[i, j_bwd] = 1
+                    adj[j_bwd, i] = 1
+
+        # Build mixing matrix: W = (1-alpha)*I + alpha * (A / deg)
+        # For matching (deg=1): W_ij = alpha, W_ii = 1-alpha
+        # For cyclic (deg=2): W_ij = alpha/2, W_ii = 1-alpha
+        degrees = adj.sum(axis=1).astype(float)
+        W = np.eye(n, dtype=np.float64)
+        for i in range(n):
+            d_i = degrees[i]
+            if d_i > 0:
+                W[i, i] = 1.0 - alpha
+                for j in range(n):
+                    if adj[i, j]:
+                        W[i, j] = alpha / d_i
+
+        W_list.append(W)
+        adj_list.append(adj)
+
+    return W_list, adj_list
+
+
+# =====================================================================
+# EquiTopo — TIME-VARYING via round-robin 1-factorization
+# (Jin et al., "Communication-Efficient Topologies for Decentralized
+#  Learning via Equalized Spectral Contribution", NeurIPS 2022)
+#
+# Constructs d perfect matchings from a round-robin tournament
+# (1-factorization of K_n), selects d evenly spaced, cycles through.
+# Each round: one-peer gossip with W = (1-alpha)*I + alpha*P.
+# =====================================================================
+
+def build_equitopo(n, d, alpha=0.5):
+    """
+    Build time-varying EquiTopo topology.
+
+    Uses round-robin 1-factorization of K_n to generate n-1 perfect
+    matchings, then selects d evenly-spaced ones.
+
+    Returns list of (W, adj) pairs, one per matching round.
+    """
+    # Need n even for perfect matchings; if odd, use N = n+1 with virtual node
+    N = n if n % 2 == 0 else n + 1
+    is_odd = (n % 2 != 0)
+    total_matchings = N - 1
+
+    # Generate all N-1 perfect matchings via round-robin tournament
+    # Round r: pivot (N-1) pairs with r; for j=1..(N-2)/2:
+    #   pair ((r-j) mod (N-1), (r+j) mod (N-1))
+    all_matchings = []
+    for r in range(total_matchings):
+        pairs = []
+        # Pivot pair
+        a, b = r, N - 1
+        if a < n and b < n:  # skip if either is virtual
+            pairs.append((a, b))
+        # Remaining pairs
+        for j in range(1, N // 2):
+            a = (r - j) % (N - 1)
+            b = (r + j) % (N - 1)
+            if a < n and b < n and a != b:
+                pairs.append((a, b))
+        all_matchings.append(pairs)
+
+    # Select d evenly-spaced matchings
+    if d >= total_matchings:
+        selected = list(range(total_matchings))
+    else:
+        selected = [int(i * total_matchings / d) for i in range(d)]
+
+    W_list = []
+    adj_list = []
+
+    for sel in selected:
+        pairs = all_matchings[sel]
+        adj = np.zeros((n, n), dtype=np.uint8)
+        for a, b in pairs:
+            adj[a, b] = 1
+            adj[b, a] = 1
+
+        # Build mixing matrix: W = (1-alpha)*I + alpha*P
+        W = np.eye(n, dtype=np.float64)
+        for a, b in pairs:
+            W[a, a] = 1.0 - alpha
+            W[a, b] = alpha
+            W[b, b] = 1.0 - alpha
+            W[b, a] = alpha
+
+        # Nodes without a partner this round keep W_ii = 1
+        W_list.append(W)
+        adj_list.append(adj)
+
+    return W_list, adj_list
 
 
 # =====================================================================
@@ -451,7 +563,7 @@ def build_qrsdr(n, d):
 # Topology dispatch
 # =====================================================================
 
-TOPOLOGY_NAMES = ["ring", "torus", "expander", "random", "qrsdr", "base"]
+TOPOLOGY_NAMES = ["ring", "torus", "expander", "random", "ours", "base", "expgraph", "equitopo"]
 
 
 class TimeVaryingTopology:
@@ -490,7 +602,7 @@ def get_topology(name, n, d=4, seed=0):
     Args:
         name: One of TOPOLOGY_NAMES
         n: Number of nodes
-        d: Degree (for qrsdr, random; k for base)
+        d: Degree (for ours, random; k for base)
         seed: Random seed (for random, base)
 
     Returns:
@@ -507,8 +619,62 @@ def get_topology(name, n, d=4, seed=0):
         adj = build_expander(n)
     elif name == "random":
         adj = build_random_regular(n, d, seed=seed)
-    elif name == "qrsdr":
-        adj = build_qrsdr(n, d)
+    elif name == "ours":
+        adj = build_ours(n, d, seed=seed)
+    elif name == "expgraph":
+        W_np_list, adj_np_list = build_expgraph_tv(n, alpha=0.5)
+
+        # Convert to torch tensors
+        W_list = [torch.from_numpy(W).float() for W in W_np_list]
+
+        # Product of all W matrices (one full cycle)
+        W_product = np.eye(n, dtype=np.float64)
+        for W in W_np_list:
+            W_product = W @ W_product
+
+        # Stacked adjacency for lambda2
+        adj_stacked = np.zeros((n, n), dtype=np.uint8)
+        for adj in adj_np_list:
+            adj_stacked = np.maximum(adj_stacked, adj)
+
+        max_deg = max(int(adj.sum(axis=1).max()) for adj in adj_np_list)
+
+        meta = {
+            "lambda2": compute_lambda2(adj_stacked),
+            "spectral_gap": compute_spectral_gap(W_product),
+            "edges": int(adj_stacked.sum()) // 2,
+            "degree": max_deg,
+            "num_rounds": len(W_np_list),
+        }
+
+        return TimeVaryingTopology(W_list, adj_np_list, meta)
+
+    elif name == "equitopo":
+        W_np_list, adj_np_list = build_equitopo(n, d, alpha=0.5)
+
+        # Convert to torch tensors
+        W_list = [torch.from_numpy(W).float() for W in W_np_list]
+
+        # Product of all W matrices (one full cycle)
+        W_product = np.eye(n, dtype=np.float64)
+        for W in W_np_list:
+            W_product = W @ W_product
+
+        # Stacked adjacency for lambda2
+        adj_stacked = np.zeros((n, n), dtype=np.uint8)
+        for adj in adj_np_list:
+            adj_stacked = np.maximum(adj_stacked, adj)
+
+        meta = {
+            "lambda2": compute_lambda2(adj_stacked),
+            "spectral_gap": compute_spectral_gap(W_product),
+            "edges": int(adj_stacked.sum()) // 2,
+            "degree": d,
+            "num_rounds": len(W_np_list),
+        }
+
+        return TimeVaryingTopology(W_list, adj_np_list, meta)
+
     elif name == "base":
         # Use the REAL Base-(k+1) implementation (Takezawa et al. NeurIPS 2023)
         from base_graph import build_base_graph as build_real_base
@@ -561,6 +727,7 @@ def get_topology(name, n, d=4, seed=0):
     # Static topology path
     actual_edges = int(adj.sum()) // 2
     degrees = adj.sum(axis=1)
+    avg_d = int(degrees.mean()) if np.all(degrees == degrees[0]) else float(degrees.mean())
 
     W = metropolis_hastings(adj)
     verify_doubly_stochastic(W)
@@ -569,8 +736,107 @@ def get_topology(name, n, d=4, seed=0):
         "lambda2": compute_lambda2(adj),
         "spectral_gap": compute_spectral_gap(W),
         "edges": actual_edges,
-        "degree": int(degrees.mean()) if np.all(degrees == degrees[0]) else float(degrees.mean()),
+        "degree": avg_d,
     }
 
     W_tensor = torch.from_numpy(W).float()
     return StaticTopology(W_tensor, adj, meta)
+
+
+def decompose_to_one_peer(static_topo, n, d, seed=0):
+    """
+    Decompose a static d-regular topology into d one-peer matchings.
+
+    Each matching becomes one round: node exchanges with exactly 1 neighbor.
+    Mixing weight per matching: W_k = (1-alpha)*I + alpha*P_k, alpha=0.5.
+
+    Returns a TimeVaryingTopology with d rounds.
+    """
+    adj = static_topo.adj
+    rng = np.random.RandomState(seed)
+
+    # Find d perfect matchings via randomized greedy + augmenting paths
+    has_edge = adj.copy().astype(bool)
+    matchings = []
+
+    for c in range(d):
+        partner = np.full(n, -1)
+        order = rng.permutation(n)
+        for i in order:
+            if partner[i] >= 0:
+                continue
+            nbrs = np.where(has_edge[i])[0]
+            rng.shuffle(nbrs)
+            for j in nbrs:
+                if partner[j] < 0:
+                    partner[i] = j
+                    partner[j] = i
+                    break
+        # Augmenting paths
+        for start in range(n):
+            if partner[start] >= 0:
+                continue
+            parent = [-2] * n
+            parent[start] = -1
+            queue = [start]
+            found = -1
+            while queue and found < 0:
+                u = queue.pop(0)
+                for v in range(n):
+                    if parent[v] != -2 or not has_edge[u][v] or partner[u] == v:
+                        continue
+                    parent[v] = u
+                    if partner[v] < 0:
+                        found = v
+                        break
+                    w = partner[v]
+                    parent[w] = v
+                    queue.append(w)
+            if found >= 0:
+                v = found
+                while v >= 0:
+                    u = parent[v]
+                    prev = parent[u] if u >= 0 else -1
+                    partner[u] = v
+                    partner[v] = u
+                    v = prev
+        # Remove matched edges
+        for i in range(n):
+            j = partner[i]
+            if j >= 0:
+                has_edge[i][j] = False
+                has_edge[j][i] = False
+        matchings.append(partner)
+
+    # Build one W matrix per matching: W = (1-alpha)*I + alpha*P
+    alpha = 0.5
+    W_list = []
+    adj_list = []
+    for partner in matchings:
+        W = np.eye(n, dtype=np.float64)
+        a = np.zeros((n, n), dtype=np.uint8)
+        for i in range(n):
+            j = partner[i]
+            if j >= 0:
+                W[i, i] = 1 - alpha
+                W[i, j] = alpha
+                a[i, j] = 1
+                a[j, i] = 1
+        W_list.append(torch.from_numpy(W).float())
+        adj_list.append(a)
+
+    # Product of all matching W matrices
+    W_product = np.eye(n, dtype=np.float64)
+    for W_np in [w.numpy().astype(np.float64) for w in W_list]:
+        W_product = W_np @ W_product
+
+    meta = {
+        "lambda2": static_topo.meta["lambda2"],
+        "spectral_gap": compute_spectral_gap(W_product),
+        "edges": static_topo.meta["edges"],
+        "degree": d,
+        "num_rounds": len(matchings),
+        "one_peer": True,
+    }
+
+    return TimeVaryingTopology(W_list, adj_list, meta)

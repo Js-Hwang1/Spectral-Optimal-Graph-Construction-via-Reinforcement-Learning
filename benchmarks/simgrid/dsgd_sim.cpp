@@ -11,7 +11,7 @@
  *       -L/opt/homebrew/Cellar/simgrid/4.1_1/lib -lsimgrid
  *
  * Usage:
- *   ./dsgd_sim --platform platform.xml --topology qrsdr --n 64 --d 4 \
+ *   ./dsgd_sim --platform platform.xml --topology ours --n 64 --d 4 \
  *              --rounds 500 --msg-size 1000000
  */
 
@@ -38,7 +38,7 @@ namespace sg4 = simgrid::s4u;
 // ============================================================
 
 struct SimConfig {
-    std::string topology_name = "qrsdr";
+    std::string topology_name = "ours";
     int n = 64;
     int d = 4;
     int rounds = 500;
@@ -47,10 +47,12 @@ struct SimConfig {
     double fail_rate = 0.0;
     double straggler_frac = 0.0;
     double straggler_slowdown = 10.0;
+    std::string straggler_mode = "drop"; // "sync" = all wait (old), "drop" = skip stragglers
     std::string platform_file;
     std::string output_file = "results.json";
     unsigned seed = 42;
     bool one_peer = false;  // one-peer-per-round via edge coloring
+    std::vector<double> weights; // per-round alpha values (empty = use default)
 };
 
 struct RoundMetrics {
@@ -112,12 +114,16 @@ static void worker_actor(int my_id) {
         // === 2. Gossip: exchange parameters with neighbors ===
         const auto& neighbors = g_topology.get_round(round)[my_id];
 
-        // Determine active neighbors (not failed)
+        // Determine active neighbors (not failed, not straggler in drop mode)
         std::vector<int> active_neighbors;
         for (int j : neighbors) {
-            if (!g_link_failed[my_id][j]) {
-                active_neighbors.push_back(j);
+            if (g_link_failed[my_id][j]) continue;
+            // In "drop" mode: skip straggler neighbors (timeout model)
+            // Also skip if I am a straggler (my neighbors won't wait for me)
+            if (g_config.straggler_mode == "drop") {
+                if (g_is_straggler[j] || g_is_straggler[my_id]) continue;
             }
+            active_neighbors.push_back(j);
         }
 
         // Use ASYNC sends to avoid deadlock: issue all put_async first,
@@ -151,24 +157,41 @@ static void worker_actor(int my_id) {
             comm->wait();
         }
 
-        // === 3. Gossip update (lazy Metropolis-Hastings) ===
+        // === 3. Gossip update ===
         double my_val = g_values[my_id];
         double new_val = my_val;
 
         if (!active_neighbors.empty()) {
-            if (g_topology.is_static) {
+            if (!g_config.weights.empty()) {
+                // Per-round alpha from --weights (cycles through the list)
+                // W = (1-alpha)*I + alpha*P  for one-peer matching
+                int w_idx = round % (int)g_config.weights.size();
+                double alpha = g_config.weights[w_idx];
+                // One-peer: exactly 1 neighbor
+                new_val = (1.0 - alpha) * my_val + alpha * received[0];
+            } else if (g_topology.is_static) {
                 // Static topology: W = (1/2)(I + A/d)
                 // w_ij = 1/(2d) for each neighbor, w_ii = 1/2
                 int deg = (int)active_neighbors.size();
                 double w_neighbor = 1.0 / (2.0 * deg);
-                // w_ii = 1 - sum of neighbor weights
                 double w_self = 1.0 - w_neighbor * deg;
                 new_val = w_self * my_val;
                 for (double rv : received) {
                     new_val += w_neighbor * rv;
                 }
+            } else if (g_config.topology_name == "expgraph" ||
+                       g_config.topology_name == "equitopo") {
+                // Time-varying one-peer: W = (1/2)(I + P_r)
+                // Node averages with self and its one partner equally
+                // For ExpGraph non-pow2 (deg=2): W = (1/3)(I + A)
+                int deg = (int)active_neighbors.size();
+                double w = 1.0 / (deg + 1.0);
+                new_val = w * my_val;
+                for (double rv : received) {
+                    new_val += w * rv;
+                }
             } else {
-                // Time-varying (Base-(k+1)): equal weight averaging
+                // Time-varying (Base-(k+1), generic): equal weight averaging
                 // w_ij = 1/(deg+1) for neighbors and self
                 int deg = (int)active_neighbors.size();
                 double w = 1.0 / (deg + 1.0);
@@ -239,6 +262,7 @@ static void write_json(const std::string& filename) {
     f << "    \"fail_rate\": " << g_config.fail_rate << ",\n";
     f << "    \"straggler_frac\": " << g_config.straggler_frac << ",\n";
     f << "    \"straggler_slowdown\": " << g_config.straggler_slowdown << ",\n";
+    f << "    \"straggler_mode\": \"" << g_config.straggler_mode << "\",\n";
     f << "    \"seed\": " << g_config.seed << ",\n";
     f << "    \"platform\": \"" << g_config.platform_file << "\",\n";
     f << "    \"one_peer\": " << (g_config.one_peer ? "true" : "false") << "\n";
@@ -281,7 +305,17 @@ int main(int argc, char* argv[]) {
         else if (arg == "--platform" && i + 1 < argc) g_config.platform_file = argv[++i];
         else if (arg == "--output" && i + 1 < argc) g_config.output_file = argv[++i];
         else if (arg == "--seed" && i + 1 < argc) g_config.seed = std::stoul(argv[++i]);
+        else if (arg == "--straggler-mode" && i + 1 < argc) g_config.straggler_mode = argv[++i];
         else if (arg == "--one-peer") g_config.one_peer = true;
+        else if (arg == "--weights" && i + 1 < argc) {
+            // Parse comma-separated alpha values
+            std::string wstr = argv[++i];
+            std::stringstream ss(wstr);
+            std::string token;
+            while (std::getline(ss, token, ',')) {
+                g_config.weights.push_back(std::stod(token));
+            }
+        }
     }
 
     if (g_config.platform_file.empty()) {
@@ -296,17 +330,50 @@ int main(int argc, char* argv[]) {
     std::cerr << "Building topology: " << g_config.topology_name
               << " (n=" << g_config.n << ", d=" << g_config.d << ")\n";
 
-    if (g_config.topology_name == "qrsdr") {
-        g_topology = topo::qrs_dr(g_config.n, g_config.d);
+    if (g_config.topology_name == "ours") {
+        g_topology = topo::ours(g_config.n, g_config.d, g_config.seed);
     } else if (g_config.topology_name == "base") {
         g_topology = topo::base_graph(g_config.n, g_config.d);
     } else if (g_config.topology_name == "ring") {
         g_topology = topo::ring(g_config.n);
     } else if (g_config.topology_name == "random") {
         g_topology = topo::random_d_regular(g_config.n, g_config.d, g_config.seed);
+    } else if (g_config.topology_name == "expander") {
+        g_topology = topo::expander(g_config.n);
+    } else if (g_config.topology_name == "expgraph") {
+        // Time-varying one-peer exponential graph (Ying et al., NeurIPS 2021)
+        g_topology = topo::expgraph_tv(g_config.n);
+    } else if (g_config.topology_name == "equitopo") {
+        // Time-varying EquiTopo (Jin et al., NeurIPS 2022)
+        g_topology = topo::equitopo(g_config.n, g_config.d);
+    } else if (g_config.topology_name == "torus") {
+        g_topology = topo::torus(g_config.n);
     } else {
         std::cerr << "Unknown topology: " << g_config.topology_name << "\n";
         return 1;
+    }
+
+    // Report topology info
+    if (g_topology.is_static) {
+        int max_deg = 0, min_deg = g_config.n;
+        for (int i = 0; i < g_config.n; i++) {
+            int deg = (int)g_topology.get_round(0)[i].size();
+            max_deg = std::max(max_deg, deg);
+            min_deg = std::min(min_deg, deg);
+        }
+        std::cerr << "  Static topology: degree range [" << min_deg
+                  << ", " << max_deg << "]\n";
+    } else {
+        std::cerr << "  Time-varying topology: " << g_topology.num_rounds()
+                  << " rounds per cycle\n";
+        for (int r = 0; r < g_topology.num_rounds(); r++) {
+            int max_deg = 0;
+            for (int i = 0; i < g_config.n; i++) {
+                int deg = (int)g_topology.get_round(r)[i].size();
+                max_deg = std::max(max_deg, deg);
+            }
+            std::cerr << "    Round " << r << ": max degree " << max_deg << "\n";
+        }
     }
 
     // One-peer-per-round: decompose static topology into d matchings

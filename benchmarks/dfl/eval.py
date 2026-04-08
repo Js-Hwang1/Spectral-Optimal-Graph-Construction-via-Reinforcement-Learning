@@ -41,26 +41,26 @@ plt.rcParams.update({
     "grid.alpha": 0.4,
 })
 
-TOPO_ORDER = ["ring", "torus", "expander", "random", "qrsdr", "base"]
+TOPO_ORDER = ["ring", "torus", "expander", "random", "ours", "base"]
 TOPO_DISPLAY = {
     "ring": "Ring",
     "torus": "Torus",
     "expander": "Exp. Graph",
     "random": "Random d-reg",
-    "qrsdr": "QRS-DR (ours)",
+    "ours": "Ours",
     "base": "Base-(k+1)",
 }
 TOPO_COLORS = {
     "ring": "#27ae60", "torus": "#8e44ad", "expander": "#2c3e50",
-    "random": "#e67e22", "qrsdr": "#c0392b", "base": "#2980b9",
+    "random": "#e67e22", "ours": "#c0392b", "base": "#2980b9",
 }
 TOPO_LS = {
     "ring": "-.", "torus": ":", "expander": "--",
-    "random": ":", "qrsdr": "-", "base": "--",
+    "random": ":", "ours": "-", "base": "--",
 }
 TOPO_MK = {
     "ring": "^", "torus": "v", "expander": "x",
-    "random": "D", "qrsdr": "o", "base": "s",
+    "random": "D", "ours": "o", "base": "s",
 }
 
 

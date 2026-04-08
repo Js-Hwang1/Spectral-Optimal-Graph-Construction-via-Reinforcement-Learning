@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=dfl_qrsdr
+#SBATCH --job-name=dfl_ours
 #SBATCH --partition=b40x4
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=0-06:00:00
-#SBATCH --output=logs/dfl_qrsdr_%j.log
+#SBATCH --output=logs/dfl_ours_%j.log
 
-# Run ONLY QRS-DR.
+# Run ONLY ours.
 # APPLE-TO-APPLE with Base k=1 n=32:
 #   Base k=1: 5 rounds/cycle, stacked degree=5, one-peer
-#   QRS-DR d=5: 5 matchings/cycle, stacked degree=5, one-peer
+#   Ours d=5: 5 matchings/cycle, stacked degree=5, one-peer
 # Same n, same alpha, same seed, same everything else.
 
 module load slurm
@@ -23,10 +23,10 @@ export SINGULARITYENV_PYTHONUNBUFFERED=1
 
 mkdir -p logs benchmarks/dfl/results
 
-echo "=== QRS-DR ONLY (d=5, apple-to-apple with Base k=1) ==="
+echo "=== Ours ONLY (d=5, apple-to-apple with Base k=1) ==="
 
 singularity exec --nv dfl.sif python benchmarks/dfl/train.py \
-    --topo qrsdr \
+    --topo ours \
     --n 32 \
     --d 5 \
     --alpha 0.1 \

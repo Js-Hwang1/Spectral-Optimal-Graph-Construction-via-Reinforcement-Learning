@@ -1,0 +1,384 @@
+<?xml version="1.0"?>
+<!DOCTYPE platform SYSTEM "https://simgrid.org/simgrid.dtd">
+<platform version="4.1">
+  <zone id="world" routing="Full">
+    <host id="worker_0" speed="1Gf"/>
+    <host id="worker_1" speed="1Gf"/>
+    <host id="worker_2" speed="1Gf"/>
+    <host id="worker_3" speed="1Gf"/>
+    <host id="worker_4" speed="1Gf"/>
+    <host id="worker_5" speed="1Gf"/>
+    <host id="worker_6" speed="1Gf"/>
+    <host id="worker_7" speed="1Gf"/>
+    <host id="worker_8" speed="1Gf"/>
+    <host id="worker_9" speed="1Gf"/>
+    <host id="worker_10" speed="1Gf"/>
+    <host id="worker_11" speed="1Gf"/>
+    <host id="worker_12" speed="1Gf"/>
+    <host id="worker_13" speed="1Gf"/>
+    <host id="worker_14" speed="1Gf"/>
+    <host id="worker_15" speed="1Gf"/>
+    <link id="shared_link" bandwidth="10Gbps" latency="10us"/>
+    <route src="worker_0" dst="worker_1">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_2">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_3">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_4">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_5">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_6">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_0" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_2">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_3">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_4">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_5">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_6">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_1" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_3">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_4">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_5">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_6">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_2" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_4">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_5">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_6">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_3" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_5">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_6">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_4" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_6">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_5" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_7">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_6" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_8">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_7" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_9">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_8" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_9" dst="worker_10">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_9" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_9" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_9" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_9" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_9" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_10" dst="worker_11">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_10" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_10" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_10" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_10" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_11" dst="worker_12">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_11" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_11" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_11" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_12" dst="worker_13">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_12" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_12" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_13" dst="worker_14">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_13" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+    <route src="worker_14" dst="worker_15">
+      <link_ctn id="shared_link"/>
+    </route>
+  </zone>
+</platform>
+

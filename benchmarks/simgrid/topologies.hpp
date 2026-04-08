@@ -106,7 +106,7 @@ inline int primitive_root(int p) {
 // QRS-DR: Quadratic Residue Scatter + Degree Regularization
 // ============================================================
 
-inline Topology qrs_dr(int n, int d) {
+inline Topology ours(int n, int d, unsigned seed = 42) {
     assert(n >= 4 && d >= 3 && d < n && (n * d) % 2 == 0);
 
     // Adjacency matrix (flat)
@@ -131,24 +131,20 @@ inline Topology qrs_dr(int n, int d) {
         return total / 2;
     };
 
-    // Phase 1: QR Scatter
-    int p = detail::next_prime(n);
-    int g = detail::primitive_root(p);
-
-    for (int k = 0; k < d; k++) {
-        long long c = detail::mod_pow(g, k + 1, p);
-        for (int i = 0; i < n; i++) {
-            long long t = (i + 1) % p;
-            if (t == 0) t = 1;
-            int j = (int)((t * (t + c)) % p % n);
-            if (j == i) j = (j + 1) % n;
+    // Phase 1: Random init with exactly m = nd/2 edges
+    int m = n * d / 2;
+    std::mt19937 rng(seed);
+    int count = 0;
+    while (count < m) {
+        int i = rng() % n;
+        int j = rng() % n;
+        if (i != j && !get(i, j)) {
             set(i, j, 1);
+            degs[i]++;
+            degs[j]++;
+            count++;
         }
     }
-
-    // Remove self-loops
-    for (int i = 0; i < n; i++) adj[i * n + i] = 0;
-    recompute_degs();
 
     // Phase 2: Degree Regularization
     int target_edges = n * d / 2;
@@ -564,6 +560,245 @@ inline Topology random_d_regular(int n, int d, unsigned seed = 42) {
     Topology topo;
     topo.is_static = true;
     topo.rounds.push_back(std::move(best_al));
+    return topo;
+}
+
+// ============================================================
+// Exponential graph — STATIC version (legacy)
+// d = 2*ceil(log2(n)), node i connects to (i ± 2^k) mod n
+// ============================================================
+
+inline Topology expander(int n) {
+    assert(n >= 4);
+    int logn = 0;
+    { int tmp = n - 1; while (tmp > 0) { logn++; tmp >>= 1; } }
+
+    AdjList al(n);
+    std::vector<std::vector<bool>> seen(n, std::vector<bool>(n, false));
+
+    for (int i = 0; i < n; i++) {
+        for (int k = 0; k < logn; k++) {
+            int step = 1 << k;
+            int j_pos = (i + step) % n;
+            int j_neg = (i - step + n) % n;
+
+            if (j_pos != i && !seen[i][j_pos]) {
+                al[i].push_back(j_pos);
+                al[j_pos].push_back(i);
+                seen[i][j_pos] = true;
+                seen[j_pos][i] = true;
+            }
+            if (j_neg != i && j_neg != j_pos && !seen[i][j_neg]) {
+                al[i].push_back(j_neg);
+                al[j_neg].push_back(i);
+                seen[i][j_neg] = true;
+                seen[j_neg][i] = true;
+            }
+        }
+    }
+
+    Topology topo;
+    topo.is_static = true;
+    topo.rounds.push_back(std::move(al));
+    return topo;
+}
+
+// ============================================================
+// ExpGraph — TIME-VARYING one-peer exponential graph
+// (Ying et al., "Exponential Graph is Provably Efficient for
+//  Decentralized Deep Training", NeurIPS 2021)
+//
+// L = ceil(log₂(n)) matchings.
+// Round k: node i pairs with node i XOR 2^k  (power-of-2 n)
+//          or uses cyclic shift (i ± 2^k) mod n (general n).
+//
+// Key property: cycling through L matchings achieves exact
+// averaging for n = 2^L. One peer per round.
+// ============================================================
+
+inline Topology expgraph_tv(int n) {
+    assert(n >= 4);
+    int L = 0;
+    { int tmp = n - 1; while (tmp > 0) { L++; tmp >>= 1; } }
+    // L = ceil(log2(n))
+
+    bool is_pow2 = (n & (n - 1)) == 0;
+
+    Topology topo;
+    topo.is_static = false;
+
+    for (int k = 0; k < L; k++) {
+        int step = 1 << k;
+        AdjList al(n);
+
+        if (is_pow2) {
+            // XOR matching: i pairs with i ^ step
+            // This IS an involution: (i^s)^s = i, so it's a perfect matching
+            std::vector<bool> paired(n, false);
+            for (int i = 0; i < n; i++) {
+                if (paired[i]) continue;
+                int j = i ^ step;
+                if (j < n && j != i) {
+                    al[i].push_back(j);
+                    al[j].push_back(i);
+                    paired[i] = true;
+                    paired[j] = true;
+                }
+            }
+        } else {
+            // General n: cyclic shift ±step.
+            // Each node i connects to (i+step)%n and (i-step)%n.
+            // This gives degree 2 per round (not a matching), but
+            // matches the ExpGraph protocol for non-power-of-2 n.
+            std::vector<std::vector<bool>> seen(n, std::vector<bool>(n, false));
+            for (int i = 0; i < n; i++) {
+                int j_fwd = (i + step) % n;
+                int j_bwd = (i - step + n) % n;
+                if (j_fwd != i && !seen[i][j_fwd]) {
+                    al[i].push_back(j_fwd);
+                    al[j_fwd].push_back(i);
+                    seen[i][j_fwd] = true;
+                    seen[j_fwd][i] = true;
+                }
+                if (j_bwd != i && j_bwd != j_fwd && !seen[i][j_bwd]) {
+                    al[i].push_back(j_bwd);
+                    al[j_bwd].push_back(i);
+                    seen[i][j_bwd] = true;
+                    seen[j_bwd][i] = true;
+                }
+            }
+        }
+        topo.rounds.push_back(std::move(al));
+    }
+
+    return topo;
+}
+
+// ============================================================
+// EquiTopo — TIME-VARYING topology via round-robin 1-factorization
+// (Jin et al., "Communication-Efficient Topologies for
+//  Decentralized Learning via Equalized Spectral Contribution",
+//  NeurIPS 2022)
+//
+// Constructs d perfect matchings from a round-robin tournament
+// (1-factorization of K_n), selects d of them evenly spaced,
+// and cycles through them.  Each round: one-peer gossip.
+//
+// Round-robin 1-factorization for n even:
+//   Fix node (n-1) as pivot. In round r (r = 0,...,n-2):
+//     pair (r, n-1)
+//     pair ((r-j) mod (n-1), (r+j) mod (n-1)) for j = 1,...,(n-2)/2
+//   This yields n-1 perfect matchings of K_n.
+//
+// For EquiTopo, we select d evenly-spaced matchings and
+// use equal weight α = 0.5 (EquiTopo-EW variant).
+// ============================================================
+
+inline Topology equitopo(int n, int d) {
+    // Need n even for perfect matchings; if odd, add virtual node
+    int N = n;
+    bool odd = (n % 2 != 0);
+    if (odd) N = n + 1;
+
+    assert(d >= 1 && d <= N - 1);
+
+    // Generate all N-1 perfect matchings via round-robin
+    // matching r: pivot=N-1 pairs with r; for j=1..(N-2)/2:
+    //   pair ( (r-j) mod (N-1), (r+j) mod (N-1) )
+    int total_matchings = N - 1;
+    std::vector<std::vector<std::pair<int,int>>> all_matchings(total_matchings);
+
+    for (int r = 0; r < total_matchings; r++) {
+        // Pair pivot (N-1) with node r
+        if (!odd || (r < n && (N - 1) < n)) {
+            // Only add if both nodes are real (not virtual)
+            all_matchings[r].push_back({r, N - 1});
+        }
+
+        for (int j = 1; j <= (N - 2) / 2; j++) {
+            int a = ((r - j) % (N - 1) + (N - 1)) % (N - 1);
+            int b = (r + j) % (N - 1);
+            // Only add if both nodes are real
+            if (a < n && b < n && a != b) {
+                all_matchings[r].push_back({a, b});
+            }
+        }
+    }
+
+    // Select d evenly-spaced matchings from the total
+    std::vector<int> selected;
+    if (d >= total_matchings) {
+        for (int i = 0; i < total_matchings; i++) selected.push_back(i);
+    } else {
+        for (int i = 0; i < d; i++) {
+            int idx = (int)((long long)i * total_matchings / d);
+            selected.push_back(idx);
+        }
+    }
+
+    // Build time-varying topology
+    Topology topo;
+    topo.is_static = false;
+
+    for (int sel : selected) {
+        AdjList al(n);
+        for (auto& [a, b] : all_matchings[sel]) {
+            if (a < n && b < n) {
+                al[a].push_back(b);
+                al[b].push_back(a);
+            }
+        }
+        topo.rounds.push_back(std::move(al));
+    }
+
+    return topo;
+}
+
+// ============================================================
+// Torus (2D grid with wraparound, static, degree 4)
+// Arrange n nodes in a sqrt(n) × sqrt(n) grid with periodic
+// boundary conditions.  Requires n to be a perfect square.
+// If not, uses the closest rectangle r × c where r*c = n.
+// ============================================================
+
+inline Topology torus(int n) {
+    assert(n >= 4);
+
+    // Find dimensions: try to get as close to square as possible
+    int r = (int)std::sqrt((double)n);
+    while (r > 1 && n % r != 0) r--;
+    int c = n / r;
+    // r rows, c columns, r*c = n
+
+    AdjList al(n);
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++) {
+            int id = i * c + j;
+            // Right neighbor (wrap)
+            int right = i * c + (j + 1) % c;
+            // Down neighbor (wrap)
+            int down = ((i + 1) % r) * c + j;
+
+            if (right != id) {
+                al[id].push_back(right);
+                al[right].push_back(id);
+            }
+            if (down != id) {
+                al[id].push_back(down);
+                al[down].push_back(id);
+            }
+        }
+    }
+
+    // Deduplicate neighbor lists
+    for (int i = 0; i < n; i++) {
+        std::sort(al[i].begin(), al[i].end());
+        al[i].erase(std::unique(al[i].begin(), al[i].end()), al[i].end());
+    }
+
+    Topology topo;
+    topo.is_static = true;
+    topo.rounds.push_back(std::move(al));
     return topo;
 }
 

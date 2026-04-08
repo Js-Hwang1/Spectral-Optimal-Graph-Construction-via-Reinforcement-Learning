@@ -20,7 +20,7 @@ export SINGULARITYENV_PYTHONUNBUFFERED=1
 
 mkdir -p logs benchmarks/dfl/results
 
-for topo in ring torus expander random qrsdr base; do
+for topo in ring torus expander random ours base; do
   echo "=== Running $topo ==="
   singularity exec --nv dfl.sif python benchmarks/dfl/train.py \
       --topo $topo \
