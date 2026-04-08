@@ -50,21 +50,24 @@ static uint32_t rng_next(void) {
     rng_s = rng_s * 6364136223846793005ULL + 1442695040888963407ULL;
     return (uint32_t)(rng_s >> 32);
 }
-static int rng_int(int n) { return (int)(rng_next() % (uint32_t)n); }
+static long long rng_ll(long long n) {
+    uint64_t r = ((uint64_t)rng_next() << 32) | rng_next();
+    return (long long)(r % (uint64_t)n);
+}
 
 // ============================================================
 // Phase 1 (CPU): Random init — exactly m edges
 // Uses generous max_deg for Poisson tail during init
 // ============================================================
-void phase1_init(int *adj, int *deg, int n, int d, int max_deg, uint64_t seed) {
-    long long m = (long long)n * d / 2;
+void phase1_init(int *adj, int *deg, long long n, int d, int max_deg, uint64_t seed) {
+    long long m = n * d / 2;
     rng_seed(seed);
     memset(deg, 0, (size_t)n * sizeof(int));
     memset(adj, -1, (size_t)n * max_deg * sizeof(int));
 
     long long count = 0;
     while (count < m) {
-        int u = rng_int(n), v = rng_int(n);
+        int u = (int)rng_ll(n), v = (int)rng_ll(n);
         if (u == v) continue;
         if (deg[u] >= max_deg - 1 || deg[v] >= max_deg - 1) continue;
         int exists = 0;
@@ -80,14 +83,14 @@ void phase1_init(int *adj, int *deg, int n, int d, int max_deg, uint64_t seed) {
 // ============================================================
 // Phase 2 (CPU): Parallel degree regularization
 // ============================================================
-void phase2_regularize(int *adj, int *deg, int n, int d, int max_deg) {
+void phase2_regularize(int *adj, int *deg, long long n, int d, int max_deg) {
     int *over = (int*)malloc((size_t)n * sizeof(int));
     int *under = (int*)malloc((size_t)n * sizeof(int));
-    int *claimed = (int*)calloc(n, sizeof(int));
+    int *claimed = (int*)calloc((size_t)n, sizeof(int));
 
-    for (int round = 0; round < n * d; round++) {
+    for (long long round = 0; round < n * d; round++) {
         int n_over = 0, n_under = 0;
-        for (int i = 0; i < n; i++) {
+        for (long long i = 0; i < n; i++) {
             if (deg[i] > d) over[n_over++] = i;
             else if (deg[i] < d) under[n_under++] = i;
         }
@@ -192,11 +195,11 @@ void phase2_regularize(int *adj, int *deg, int n, int d, int max_deg) {
 // ============================================================
 // Compact: copy exactly d neighbors per node into dense array
 // ============================================================
-void compact_adj(const int *adj_full, const int *deg, int n, int d,
+void compact_adj(const int *adj_full, const int *deg, long long n, int d,
                  int max_deg, int *adj_compact) {
     for (long long i = 0; i < n; i++) {
         for (int k = 0; k < d; k++) {
-            adj_compact[i * d + k] = adj_full[i * max_deg + k];
+            adj_compact[i * (long long)d + k] = adj_full[i * (long long)max_deg + k];
         }
     }
 }
@@ -206,13 +209,13 @@ void compact_adj(const int *adj_full, const int *deg, int n, int d,
 // ============================================================
 
 __global__ void kernel_laplacian_mv_compact(
-    const int *adj, const float *x, float *y, int n, int d)
+    const int *adj, const float *x, float *y, long long n, int d)
 {
     long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
     float s = d * x[i];
     for (int k = 0; k < d; k++) {
-        int j = adj[i * d + k];
+        int j = adj[i * (long long)d + k];
         s -= x[j];
     }
     y[i] = s;
@@ -252,9 +255,9 @@ double gpu_dot_f(const float *a, const float *b, long long n, double *tmp) {
     return r;
 }
 
-double gpu_lanczos_f(int *d_adj, int n, int d, int iters) {
+double gpu_lanczos_f(int *d_adj, long long n, int d, int iters) {
     int bl = 256;
-    long long gr = ((long long)n + bl - 1) / bl;
+    long long gr = (n + bl - 1) / bl;
 
     float *d_v0, *d_v1, *d_w, *d_ones;
     double *d_tmp;
@@ -385,7 +388,7 @@ int main(int argc, char **argv) {
         clock_gettime(CLOCK_MONOTONIC, &t2);
 
         int reg = 1;
-        for (int i = 0; i < n; i++) if (h_deg[i] != d) { reg = 0; break; }
+        for (long long i = 0; i < n; i++) if (h_deg[i] != d) { reg = 0; break; }
 
         // Compact
         int *h_compact = (int*)malloc((size_t)n * d * sizeof(int));
@@ -443,10 +446,10 @@ int main(int argc, char **argv) {
 
             struct timespec t0,t1,t2,t3;
             clock_gettime(CLOCK_MONOTONIC, &t0);
-            phase1_init(h_adj, h_deg, (int)n, d, max_deg, 42);
+            phase1_init(h_adj, h_deg, n, d, max_deg, 42);
             clock_gettime(CLOCK_MONOTONIC, &t1);
 
-            phase2_regularize(h_adj, h_deg, (int)n, d, max_deg);
+            phase2_regularize(h_adj, h_deg, n, d, max_deg);
             clock_gettime(CLOCK_MONOTONIC, &t2);
 
             int reg = 1;
@@ -454,7 +457,7 @@ int main(int argc, char **argv) {
 
             int *h_compact = (int*)malloc((size_t)(n * d * sizeof(int)));
             if (!h_compact) { printf("OOM compact\n"); free(h_adj); free(h_deg); break; }
-            compact_adj(h_adj, h_deg, (int)n, d, max_deg, h_compact);
+            compact_adj(h_adj, h_deg, n, d, max_deg, h_compact);
             free(h_adj);
 
             int *d_adj;
@@ -463,7 +466,7 @@ int main(int argc, char **argv) {
             free(h_compact);
 
             int k = logn <= 14 ? 300 : (logn <= 20 ? 500 : 800);
-            double l2 = gpu_lanczos_f(d_adj, (int)n, d, k);
+            double l2 = gpu_lanczos_f(d_adj, n, d, k);
             clock_gettime(CLOCK_MONOTONIC, &t3);
 
             double is_=(t1.tv_sec-t0.tv_sec)+(t1.tv_nsec-t0.tv_nsec)/1e9;
