@@ -55,6 +55,7 @@ void phase1_init(int *adj, int *deg, int n, int d, int max_deg, uint64_t seed) {
         for (int k = 0; k < deg[u]; k++)
             if (adj[u * max_deg + k] == v) { exists = 1; break; }
         if (exists) continue;
+        if (deg[u] >= max_deg - 1 || deg[v] >= max_deg - 1) continue; // skip if full
         adj[u * max_deg + deg[u]++] = v;
         adj[v * max_deg + deg[v]++] = u;
         count++;
@@ -317,12 +318,12 @@ double gpu_lanczos(int *d_adj, int *d_deg, int n, int max_deg, int iters) {
 // Main
 // ============================================================
 int main(int argc, char **argv) {
-    int d = 4, max_deg = d * 3 + 4;
+    int d = 4, max_deg = d + 12;  // d + ~3*sqrt(d) + safety margin
     cudaDeviceProp prop; cudaGetDeviceProperties(&prop, 0);
     fprintf(stderr, "GPU: %s (%.1f GB)\n", prop.name, prop.totalGlobalMem/1e9);
 
     if (argc >= 3 && strcmp(argv[1], "--sweep") != 0) {
-        int n = atoi(argv[1]); d = atoi(argv[2]); max_deg = d*3+4;
+        int n = atoi(argv[1]); d = atoi(argv[2]); max_deg = d + 12;
         uint64_t seed = argc >= 4 ? atoll(argv[3]) : 42;
         double ram = d - 2*sqrt(d-1);
 

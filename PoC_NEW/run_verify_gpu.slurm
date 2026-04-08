@@ -15,9 +15,11 @@ mkdir -p logs
 
 CONTAINER=dfl.sif
 
-echo "=== Building verify_gpu_v2 (parallel regularizer) ==="
+echo "=== Building v2 and v3 ==="
 singularity exec --nv $CONTAINER \
     nvcc -O3 -arch=sm_120 -o PoC_NEW/verify_gpu_v2 PoC_NEW/verify_gpu_v2.cu -lm
+singularity exec --nv $CONTAINER \
+    nvcc -O3 -arch=sm_120 -o PoC_NEW/verify_gpu_v3 PoC_NEW/verify_gpu_v3.cu -lm
 
 for d in 4 6 8; do
     echo ""
@@ -39,7 +41,7 @@ for d in 4 6 8; do
         all_ok=1
         for seed in 0 1 2 3 4; do
             line=$(singularity exec --nv $CONTAINER \
-                PoC_NEW/verify_gpu_v2 $n $d $seed 2>/dev/null | grep "^RESULT:")
+                PoC_NEW/verify_gpu_v3 $n $d $seed 2>/dev/null | grep "^RESULT:")
             if [ -z "$line" ]; then
                 all_ok=0
                 break
