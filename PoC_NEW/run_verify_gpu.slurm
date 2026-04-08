@@ -3,8 +3,8 @@
 #SBATCH --partition=b40x4-long
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=64G
-#SBATCH --time=1-00:00:00
+#SBATCH --mem=200G
+#SBATCH --time=2-00:00:00
 #SBATCH --output=logs/verify_ram_gpu_%j.log
 
 module load slurm
@@ -25,7 +25,7 @@ echo ""
 echo "        n   d | seed0  seed1  seed2  seed3  seed4 |   avg    min    max    Ram  ratio"
 echo "------------------------------------------------------------------------------------"
 
-for logn in 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22; do
+for logn in 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
     n=$((1 << logn))
     results=""
     for seed in 0 1 2 3 4; do

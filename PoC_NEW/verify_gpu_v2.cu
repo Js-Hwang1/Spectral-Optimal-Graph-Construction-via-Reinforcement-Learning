@@ -368,7 +368,7 @@ int main(int argc, char **argv) {
                "n","d","init_s","reg_s","eig_s","lambda2","ratio","total");
         printf("-------------------------------------------------------------------\n");
 
-        for (int logn = 5; logn <= 24; logn++) {
+        for (int logn = 5; logn <= 30; logn++) {
             int n = 1 << logn;
             max_deg = d*3+4;
             int *h_adj = (int*)malloc((long long)n*max_deg*sizeof(int));
